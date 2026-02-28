@@ -8,7 +8,7 @@ struct ModelTarget {
 
 const MODEL_TARGETS: [ModelTarget; 4] = [
     ModelTarget {
-        key: "gemini-3-pro-high",
+        key: "gemini-3.1-pro-high",
         display_name: "Gemini Pro",
     },
     ModelTarget {
@@ -16,11 +16,11 @@ const MODEL_TARGETS: [ModelTarget; 4] = [
         display_name: "Gemini Flash",
     },
     ModelTarget {
-        key: "gemini-3-pro-image",
+        key: "gemini-3.1-flash-image",
         display_name: "Gemini Image",
     },
     ModelTarget {
-        key: "claude-opus-4-5-thinking",
+        key: "claude-opus-4-6-thinking",
         display_name: "Claude",
     },
 ];
@@ -184,13 +184,32 @@ pub async fn trigger_quota_refresh(
 
 fn parse_quotas_for_targets(models_json: &Value) -> Vec<ParsedQuota> {
     let Some(models_map) = models_json.get("models").and_then(|v| v.as_object()) else {
+        tracing::warn!("No 'models' key found in API response");
         return Vec::new();
     };
+
+    // Debug: log all available model keys from the API
+    let available_keys: Vec<&String> = models_map.keys().collect();
+    tracing::info!(
+        available_model_keys = ?available_keys,
+        "API returned {} models",
+        available_keys.len()
+    );
 
     MODEL_TARGETS
         .iter()
         .filter_map(|target| {
-            let model_data = models_map.get(target.key)?;
+            let model_data = match models_map.get(target.key) {
+                Some(data) => data,
+                None => {
+                    tracing::warn!(
+                        target_key = %target.key,
+                        display_name = %target.display_name,
+                        "Model key NOT found in API response"
+                    );
+                    return None;
+                }
+            };
             let quota_info = model_data.get("quotaInfo")?;
 
             let percentage = quota_info
@@ -202,6 +221,13 @@ fn parse_quotas_for_targets(models_json: &Value) -> Vec<ParsedQuota> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
+
+            tracing::debug!(
+                target_key = %target.key,
+                display_name = %target.display_name,
+                percentage = %percentage,
+                "Model quota parsed successfully"
+            );
 
             Some(ParsedQuota {
                 model_key: target.key,
