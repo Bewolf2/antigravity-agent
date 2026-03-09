@@ -170,7 +170,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
       onClick={onSelect}
       onMouseMove={handleMouseMove}
       className={cn(
-        "group relative w-[340px] overflow-hidden rounded-[28px] border px-6 py-5 cursor-pointer",
+        "group relative w-full overflow-hidden rounded-2xl border px-4 py-3 cursor-pointer",
         "bg-card/92 text-card-foreground shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)] backdrop-blur-xl",
         "transition-[border-color,background-color,box-shadow,transform] duration-200",
         isCurrentUser
@@ -205,7 +205,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
 
       {/* --- 特效层 A: 聚光灯 (鼠标跟随) --- */}
       <motion.div
-        className="pointer-events-none absolute -inset-px z-0 rounded-[28px] opacity-0 transition duration-500 group-hover:opacity-100"
+        className="pointer-events-none absolute -inset-px z-0 rounded-2xl opacity-0 transition duration-500 group-hover:opacity-100"
         style={{
           background: useMotionTemplate`
             radial-gradient(
@@ -220,7 +220,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
       {/* --- 特效层 B: Ultra 专属呼吸边框 --- */}
       {tier === 'g1-ultra-tier' && !shouldReduceMotion && (
         <motion.div
-          className="absolute inset-0 z-0 rounded-[28px] border border-violet-400/30 pointer-events-none"
+          className="absolute inset-0 z-0 rounded-2xl border border-violet-400/30 pointer-events-none"
           animate={{ opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: accountSessionMotion.card.ultraPulseDuration, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -231,12 +231,12 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
 
         {/* 头部区域 */}
         <motion.header
-          className="flex items-center gap-4 mb-2 relative"
+          className="flex items-center gap-3 mb-1.5 relative"
           variants={childVariants}
         >
           <Avatar
             className={cn(
-              "h-12 w-12 rounded-full object-cover border-2 transition-all duration-300 shrink-0 ring-2 ring-offset-2",
+              "h-10 w-10 rounded-full object-cover border-2 transition-all duration-300 shrink-0 ring-2 ring-offset-2",
               tier === 'g1-ultra-tier'
                 ? "border-white/60 ring-white/20"
                 : isCurrentUser
@@ -248,9 +248,9 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
           />
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 min-w-0 pr-4">
               <Tooltip title={displayName} styles={{ container: tooltipInnerStyle }}>
-                <h2 className="flex-1 min-w-0 text-lg font-bold leading-tight text-foreground line-clamp-2 break-words">
+                <h2 className="flex-1 min-w-0 text-base font-bold leading-tight text-foreground line-clamp-1 break-words">
                   {displayName}
                 </h2>
               </Tooltip>
@@ -260,7 +260,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
             </div>
             <Tooltip title={displayEmail} styles={{ container: tooltipInnerStyle }}>
               {/* 高度用于统一一行和两行对其 */}
-              <p className="h-[42px] break-all text-sm font-medium text-muted-foreground line-clamp-2">{displayEmail}</p>
+              <p className="h-[34px] break-all text-sm font-medium text-muted-foreground line-clamp-2">{displayEmail}</p>
             </Tooltip>
           </div>
         </motion.header>
@@ -279,7 +279,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
 
         {/* 底部交互区域 */}
         <motion.div
-          className="relative mt-6 flex items-center justify-center gap-2"
+          className="relative mt-3 flex items-center justify-center gap-2"
           variants={childVariants}
         >
           <BaseButton
