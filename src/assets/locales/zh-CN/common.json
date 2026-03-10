@@ -39,6 +39,7 @@
     "resetTime": "重置时间"
   },
   "tier": {
+    "all": "全部",
     "free": "Free",
     "pro": "Pro",
     "ultra": "Ultra"

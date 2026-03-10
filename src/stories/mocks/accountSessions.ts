@@ -6,7 +6,7 @@ import type {
 import type {
   AccountAdditionData,
   UserTier,
-} from '@/modules/use-account-addition-data.ts';
+} from '@/modules/use-account-data-store.ts';
 
 type BaseMockAccount = {
   email: string;
@@ -31,6 +31,7 @@ const defaultQuotas: AccountAdditionData = {
   claudeQuote: 0.65,
   claudeQuoteRestIn: '2025-12-21T10:50:06Z',
   userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Default',
+  lastUpdatedAt: Date.now(),
   userId: 'mock_default',
   projectId: 'mock_project_default',
 };
@@ -47,6 +48,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.42,
       claudeQuote: 0.92,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Admin',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_admin',
     },
   },
@@ -61,6 +63,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.18,
       claudeQuote: 0.4,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Jason',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_jason',
     },
   },
@@ -79,6 +82,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuoteRestIn: '',
       claudeQuoteRestIn: '',
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Guest',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_guest',
     },
   },
@@ -93,6 +97,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.5,
       claudeQuote: 0.7,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Sarah',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_sarah',
     },
   },
@@ -107,6 +112,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.75,
       claudeQuote: 0.88,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Bruce',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_bruce',
     },
   },
@@ -121,6 +127,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.2,
       claudeQuote: 0.2,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Ripley',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_ripley',
     },
   },
@@ -135,6 +142,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.48,
       claudeQuote: 0.6,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Neo',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_neo',
     },
   },
@@ -149,6 +157,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.12,
       claudeQuote: 0.45,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Trinity',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_trinity',
     },
   },
@@ -163,6 +172,7 @@ const baseMockAccounts: BaseMockAccount[] = [
       geminiImageQuote: 0.05,
       claudeQuote: 0.12,
       userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=Deckard',
+  lastUpdatedAt: Date.now(),
       userId: 'mock_deckard',
     },
   },
@@ -345,6 +355,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(96), // 4 天
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=4days',
+  lastUpdatedAt: Date.now(),
     userId: 'user_4days',
   },
   'user-3hours@test.com': {
@@ -352,6 +363,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(3), // 3 小时
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=3hours',
+  lastUpdatedAt: Date.now(),
     userId: 'user_3hours',
   },
   'user-2days@test.com': {
@@ -359,6 +371,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(48), // 2 天
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=2days',
+  lastUpdatedAt: Date.now(),
     userId: 'user_2days',
   },
   'user-30min@test.com': {
@@ -366,6 +379,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(0.5), // 30 分钟
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=30min',
+  lastUpdatedAt: Date.now(),
     userId: 'user_30min',
   },
   'user-1week@test.com': {
@@ -373,6 +387,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(168), // 1 周
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=1week',
+  lastUpdatedAt: Date.now(),
     userId: 'user_1week',
   },
   'user-12hours@test.com': {
@@ -380,6 +395,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0,
     claudeQuoteRestIn: hoursFromNow(12), // 12 小时
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=12hours',
+  lastUpdatedAt: Date.now(),
     userId: 'user_12hours',
   },
   'user-with-quota@test.com': {
@@ -387,6 +403,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0.5, // 有配额
     claudeQuoteRestIn: hoursFromNow(24),
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=withquota',
+  lastUpdatedAt: Date.now(),
     userId: 'user_withquota',
   },
   'user-high-quota@test.com': {
@@ -394,6 +411,7 @@ export const sortingTestAdditionDataMap: Record<string, AccountAdditionData> = {
     claudeQuote: 0.8, // 高配额
     claudeQuoteRestIn: hoursFromNow(24),
     userAvatar: 'https://api.dicebear.com/9.x/avataaars/svg?seed=highquota',
+  lastUpdatedAt: Date.now(),
     userId: 'user_highquota',
   },
 };

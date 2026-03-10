@@ -1,8 +1,27 @@
 import {create} from 'zustand';
 import {listen, UnlistenFn} from '@tauri-apps/api/event';
-import {EventEmitter} from 'events';
 import {logger} from '../lib/logger.ts';
 import {DbMonitorCommands} from "@/commands/DbMonitorCommands.ts";
+import { formatError } from '@/lib/utils.ts';
+
+class SimpleEventEmitter {
+  private _listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+
+  on(event: string, listener: (...args: unknown[]) => void): void {
+    if (!this._listeners.has(event)) {
+      this._listeners.set(event, new Set());
+    }
+    this._listeners.get(event)!.add(listener);
+  }
+
+  off(event: string, listener: (...args: unknown[]) => void): void {
+    this._listeners.get(event)?.delete(listener);
+  }
+
+  emit(event: string, ...args: unknown[]): void {
+    this._listeners.get(event)?.forEach(l => l(...args));
+  }
+}
 
 export interface DatabaseChangeEvent {
     timestamp: number;
@@ -14,7 +33,7 @@ export interface DatabaseChangeEvent {
 
 export type { DatabaseEventMap, DatabaseEventListener };
 
-const databaseEventEmitter = new EventEmitter();
+const databaseEventEmitter = new SimpleEventEmitter();
 let globalUnlistenFn: UnlistenFn | null = null;
 let startPromise: Promise<void> | null = null;
 let stopPromise: Promise<void> | null = null;
@@ -97,7 +116,7 @@ function cleanupDatabaseListener(): void {
   } catch (error) {
     logger.warn('清理数据库监听器失败', {
       module: 'DbMonitoringStore',
-      error: error instanceof Error ? error.message : String(error)
+      error: formatError(error)
     });
   } finally {
     globalUnlistenFn = null;
@@ -134,7 +153,7 @@ export const useDbMonitoringStore = create<DbMonitoringActions>()(
             cleanupDatabaseListener();
             logger.error('启动数据库监控失败', {
               module: 'DbMonitoringStore',
-              error: error instanceof Error ? error.message : String(error)
+              error: formatError(error)
             });
             throw error;
           }
@@ -171,7 +190,7 @@ export const useDbMonitoringStore = create<DbMonitoringActions>()(
           } catch (error) {
             logger.warn('停止后端数据库监控失败', {
               module: 'DbMonitoringStore',
-              error: error instanceof Error ? error.message : String(error)
+              error: formatError(error)
             });
           } finally {
             isMonitoringStarted = false;
@@ -190,10 +209,10 @@ export const useDbMonitoringStore = create<DbMonitoringActions>()(
         event: T,
         listener: DatabaseEventListener<T>
       ): (() => void) => {
-        databaseEventEmitter.on(event, listener);
+        databaseEventEmitter.on(event, listener as (...args: unknown[]) => void);
 
         return () => {
-          databaseEventEmitter.off(event, listener);
+          databaseEventEmitter.off(event, listener as (...args: unknown[]) => void);
         };
       },
     }),

@@ -6,24 +6,23 @@ import { useImportExportAccount } from "@/modules/use-import-export-accounts.ts"
 import { ImportPasswordDialog } from "@/components/ImportPasswordDialog.tsx";
 import ExportPasswordDialog from "@/components/ExportPasswordDialog.tsx";
 import BusinessSettingsDialog from "@/components/business/SettingsDialog.tsx";
-import { Modal } from 'antd';
-import { useSignInNewAntigravityAccount } from "@/hooks/use-sign-in-new-antigravity-account.ts";
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dock, DockIcon } from "@/components/ui/dock";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip.tsx";
 import { useInstallExtension } from "@/hooks/use-install-extension.tsx";
 import { useTranslation } from 'react-i18next';
-
-const { confirm } = Modal;
 
 const AppDock = () => {
   const { t } = useTranslation(['dashboard', 'account', 'notifications']);
 
   // ========== 应用状态 ==========
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { install, isInstalling } = useInstallExtension();
+  const [loginNewConfirmOpen, setLoginNewConfirmOpen] = useState(false);
+  const { install, isInstalling, errorDialog } = useInstallExtension();
 
   // Use selector to prevent infinite render loops
   const getAccounts = useAntigravityAccount((state) => state.getAccounts);
+  const signInNewAccount = useAntigravityAccount((state) => state.signInNewAccount);
   const importExportAccount = useImportExportAccount();
   const isImporting = useImportExportAccount((state) => state.isImporting);
   const isExporting = useImportExportAccount((state) => state.isExporting);
@@ -48,31 +47,10 @@ const AppDock = () => {
   };
   const handleExportConfig = () => importExportAccount.exportConfig();
 
-  const signInNewAntigravityAccount = useSignInNewAntigravityAccount();
 
   // 处理登录新账户按钮点击
   const handleBackupAndRestartClick = () => {
-    confirm({
-      centered: true,
-      title: t('account:loginNew.title'),
-      content: (
-        <div className="wrap-break-word">
-          <p>{t('account:loginNew.confirmMessage')}</p>
-          <br />
-          <p>{t('account:loginNew.details')}</p>
-          <p>1. {t('account:loginNew.step1')}</p>
-          <p>2. {t('account:loginNew.step2')}</p>
-          <p>3. {t('account:loginNew.step3')}</p>
-          <br />
-          <p>{t('account:loginNew.warning')}</p>
-        </div>
-      ),
-      onOk() {
-        signInNewAntigravityAccount.run();
-      },
-      onCancel() {
-      },
-    });
+    setLoginNewConfirmOpen(true);
   };
 
   const handleSubmitImportPassword = (password: string) => {
@@ -134,6 +112,26 @@ const AppDock = () => {
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
       />
+
+      <ConfirmDialog
+        open={loginNewConfirmOpen}
+        onOpenChange={setLoginNewConfirmOpen}
+        title={t('account:loginNew.title')}
+        content={
+          <div className="wrap-break-word space-y-2">
+            <p>{t('account:loginNew.confirmMessage')}</p>
+            <p>{t('account:loginNew.details')}</p>
+            <p>1. {t('account:loginNew.step1')}</p>
+            <p>2. {t('account:loginNew.step2')}</p>
+            <p>3. {t('account:loginNew.step3')}</p>
+            <p>{t('account:loginNew.warning')}</p>
+          </div>
+        }
+        okText={t('common:buttons.confirm')}
+        cancelText={t('common:buttons.cancel')}
+        onOk={signInNewAccount}
+      />
+      {errorDialog}
     </>
   );
 };

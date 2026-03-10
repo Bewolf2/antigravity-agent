@@ -5,12 +5,12 @@ import { maskEmail, maskName } from "@/lib/string-masking.ts";
 import { useAppSettings } from "@/modules/use-app-settings.ts";
 import { useTranslation } from 'react-i18next';
 import { accountSessionMotion } from '@/components/business/account-session-motion.ts';
-import type { AccountSessionCardViewModel, AccountSessionListItem } from '@/components/business/account-session-types.ts';
+import type { AccountSessionCardViewModel, AccountSessionAccount } from '@/components/business/account-session-types.ts';
 
 export interface AccountSessionListProps {
-  accounts: AccountSessionListItem[];
+  accounts: AccountSessionAccount[];
   currentUserEmail?: string;
-  onSelect: (user: AccountSessionListItem) => void;
+  onSelect: (user: AccountSessionAccount) => void;
   onSwitch: (email: string) => void;
   onDelete: (email: string) => void;
 }

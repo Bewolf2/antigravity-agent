@@ -1,5 +1,5 @@
 import { invokeCommand } from '@/lib/invoke-adapter';
-import { AntigravityAccount, CommandResult } from "@/commands/types/account.types.ts";
+import { AntigravityAccount, CommandResult, AccountMetrics, TriggerResult } from "@/commands/types/account.types.ts";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -101,5 +101,23 @@ export class AccountCommands {
    */
   static async clearAllData(): Promise<CommandResult> {
     return invokeCommand('clear_all_antigravity_data');
+  }
+
+  /**
+   * 获取账户配额指标 (Rust Backend Orchestrated - Singular)
+   * @param email 账户邮箱
+   */
+  static async getAccountMetrics(email: string): Promise<AccountMetrics> {
+    return invokeCommand('get_account_metrics', { email });
+  }
+
+  /**
+   * Trigger a quota refresh check for the given account.
+   * This will send a minimal query ("Hi") to any model with ~100% quota
+   * to start the reset timer.
+   * @param email The account email
+   */
+  static async triggerQuotaRefresh(email: string): Promise<TriggerResult> {
+    return invokeCommand('trigger_quota_refresh', { email });
   }
 }

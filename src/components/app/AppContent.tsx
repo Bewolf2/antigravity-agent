@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal } from "antd";
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import toast from 'react-hot-toast';
 import dayjs from "dayjs";
 import { clearInterval, setInterval } from 'worker-timers';
@@ -10,8 +10,9 @@ import type { AccountSessionAccount } from '@/components/business/account-sessio
 import { useTrayMenu } from "@/hooks/use-tray-menu.ts";
 import { logger } from "@/lib/logger.ts";
 import { maskEmail } from "@/lib/string-masking.ts";
+import { formatError } from "@/lib/utils.ts";
 import { useAppGlobalLoader } from "@/modules/use-app-global-loader.ts";
-import { useAccountAdditionData, type UserTier } from '@/modules/use-account-addition-data.ts';
+import { useAccountDataStore, type UserTier } from '@/modules/use-account-data-store.ts';
 import { useAntigravityAccount, useCurrentAntigravityAccount } from "@/modules/use-antigravity-account.ts";
 import { useTranslation } from 'react-i18next';
 import {useAntigravityIsRunning} from "@/hooks/use-antigravity-is-running.ts";
@@ -29,6 +30,7 @@ export function AppContent() {
   const { t } = useTranslation(['account', 'notifications']);
   const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AccountSessionAccount | null>(null);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState<string | null>(null);
 
 
   // Use selectors to prevent infinite render loops
@@ -37,7 +39,8 @@ export function AppContent() {
   const deleteAccount = useAntigravityAccount((state) => state.delete);
   const switchToAccount = useAntigravityAccount((state) => state.switchToAccount);
   const insertOrUpdateCurrentAccount = useAntigravityAccount((state) => state.insertOrUpdateCurrentAccount);
-  const accountAdditionData = useAccountAdditionData();
+  const accountAdditionData = useAccountDataStore((state) => state.additionData);
+  const updateAdditionData = useAccountDataStore((state) => state.updateAdditionData);
   const currentAntigravityAccount = useCurrentAntigravityAccount();
   const appGlobalLoader = useAppGlobalLoader();
   const antigravityIsRunning = useAntigravityIsRunning()
@@ -65,7 +68,7 @@ export function AppContent() {
   }, [getAccounts, t]);
 
   // 定时获取用户额外数据
-  const fetchAccountAdditionDataTimer = useRef(null)
+  const fetchAccountAdditionDataTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (fetchAccountAdditionDataTimer.current) {
@@ -75,12 +78,12 @@ export function AppContent() {
     const task = () => {
       accounts.forEach(async (user) => {
         try {
-          await accountAdditionData.update(user)
+          await updateAdditionData(user)
         } catch (e) {
           logger.error(t('notifications:fetchUserDataFailed'), {
             module: 'AppContent',
             email: user.antigravity_auth_status.email,
-            error: e instanceof Error ? e.message : String(e)
+            error: formatError(e)
           })
         }
       })
@@ -93,7 +96,9 @@ export function AppContent() {
     task()
 
     return () => {
-      clearInterval(fetchAccountAdditionDataTimer.current)
+      if (fetchAccountAdditionDataTimer.current !== null) {
+        clearInterval(fetchAccountAdditionDataTimer.current)
+      }
     }
   }, [accounts.length, t]);
 
@@ -117,18 +122,7 @@ export function AppContent() {
   };
 
   const handleDeleteBackup = (email: string) => {
-    Modal.confirm({
-      centered: true,
-      title: t('account:delete.title'),
-      content: <p className={"wrap-break-word whitespace-pre-line"}>
-        {t('account:delete.message', { email })}
-      </p>,
-      onOk() {
-        return confirmDeleteAccount(email);
-      },
-      onCancel() {
-      },
-    });
+    setDeleteConfirmEmail(email);
   };
 
   const confirmDeleteAccount = async (email: string) => {
@@ -141,7 +135,7 @@ export function AppContent() {
       appGlobalLoader.open({ label: t('account:switch.loading', { email: maskEmail(email) }) });
       await switchToAccount(email);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = formatError(error);
       toast.error(t('account:switch.error', { error: errorMessage }));
     } finally {
       appGlobalLoader.close();
@@ -151,19 +145,19 @@ export function AppContent() {
 
 
   const accountsWithData: AccountSessionAccount[] = accounts.map((account) => {
-    const accountAdditionDatum = accountAdditionData.data[account.antigravity_auth_status.email]
+    const accountAdditionDatum = accountAdditionData[account.antigravity_auth_status.email]
 
     return {
       geminiProQuote: accountAdditionDatum?.geminiProQuote ?? -1,
-      geminiProQuoteRestIn: accountAdditionDatum?.geminiProQuoteRestIn,
+      geminiProQuoteRestIn: accountAdditionDatum?.geminiProQuoteRestIn ?? '',
       geminiFlashQuote: accountAdditionDatum?.geminiFlashQuote ?? -1,
-      geminiFlashQuoteRestIn: accountAdditionDatum?.geminiFlashQuoteRestIn,
+      geminiFlashQuoteRestIn: accountAdditionDatum?.geminiFlashQuoteRestIn ?? '',
       geminiImageQuote: accountAdditionDatum?.geminiImageQuote ?? -1,
-      geminiImageQuoteRestIn: accountAdditionDatum?.geminiImageQuoteRestIn,
+      geminiImageQuoteRestIn: accountAdditionDatum?.geminiImageQuoteRestIn ?? '',
       claudeQuote: accountAdditionDatum?.claudeQuote ?? -1,
-      claudeQuoteRestIn: accountAdditionDatum?.claudeQuoteRestIn,
+      claudeQuoteRestIn: accountAdditionDatum?.claudeQuoteRestIn ?? '',
       email: account.antigravity_auth_status.email,
-      nickName: account.antigravity_auth_status.name,
+      nickName: account.antigravity_auth_status.name ?? '',
       userAvatar: accountAdditionDatum?.userAvatar ?? "",
       apiKey: account.antigravity_auth_status.api_key ?? '',
       accessToken: account.oauth_token?.access_token ?? '',
@@ -260,6 +254,16 @@ export function AppContent() {
         isOpen={isUserDetailOpen}
         onOpenChange={handleUserDetailClose}
         account={selectedUser}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmEmail !== null}
+        onOpenChange={(open) => !open && setDeleteConfirmEmail(null)}
+        title={t('account:delete.title')}
+        content={<p className="wrap-break-word whitespace-pre-line">{t('account:delete.message', { email: deleteConfirmEmail ?? '' })}</p>}
+        okText={t('common:buttons.confirm')}
+        cancelText={t('common:buttons.cancel')}
+        onOk={() => confirmDeleteAccount(deleteConfirmEmail!)}
       />
     </>
   );

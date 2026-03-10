@@ -3,6 +3,7 @@ import { SettingsCommands } from "@/commands/SettingsCommands.ts";
 import { logger } from "@/lib/logger.ts";
 import { relaunch } from "@tauri-apps/plugin-process";
 import i18n, { type SupportedLanguage } from "@/i18n";
+import { formatError } from "@/lib/utils.ts";
 
 type State = {
   hydrated: boolean;
@@ -87,7 +88,7 @@ export const useAppSettings = create<State & Actions>((setState, getState) => {
       module: 'AppSettings',
       action,
       ...extra,
-      error: error instanceof Error ? error.message : String(error)
+      error: formatError(error)
     });
   };
 

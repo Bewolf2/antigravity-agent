@@ -6,7 +6,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { BaseButton } from '@/components/base-ui/BaseButton';
 import { cn } from '@/lib/utils.ts';
 import { PlatformCommands } from "@/commands/PlatformCommands.ts";
-import { Modal } from "antd";
+import { BaseDialog } from '@/components/base-ui/BaseDialog';
 import {
   selectAppSettingsDialogState,
   useAppSettings,
@@ -108,23 +108,11 @@ const BusinessSettingsDialog: React.FC<BusinessSettingsDialogProps> = ({
   };
 
   return (
-    <Modal
+    <BaseDialog
       open={isOpen}
-      footer={null}
       onCancel={() => onOpenChange(false)}
-      className="[&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:rounded-[24px] [&_.ant-modal-content]:border [&_.ant-modal-content]:border-border [&_.ant-modal-content]:bg-card/95 [&_.ant-modal-content]:shadow-[0_32px_80px_-40px_rgba(15,23,42,0.55)] [&_.ant-modal-content]:backdrop-blur-xl"
       width={680}
       style={{ top: 48 }}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: '20px 20px 0',
-          background: 'transparent',
-        },
-        body: {
-          padding: 0,
-        },
-      }}
       title={<div className={"flex flex-row items-center gap-1.5 text-foreground"}>
         <Settings className="h-4 w-4 text-muted-foreground" />
         <span>{t('title')}</span>
@@ -208,7 +196,7 @@ const BusinessSettingsDialog: React.FC<BusinessSettingsDialogProps> = ({
         </div>
 
       </div>
-    </Modal>
+    </BaseDialog>
   );
 };
 

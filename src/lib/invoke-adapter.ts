@@ -1,4 +1,4 @@
-
+import { logger } from '@/lib/logger';
 
 // 本地服务器地址 (与 main.rs 中配置的一致)
 const SERVER_URL = 'http://127.0.0.1:56789/api';
@@ -163,10 +163,10 @@ async function getSessionToken(forceRefresh: boolean = false): Promise<string> {
 }
 
 function getCommandSpec(cmd: string): CommandSpec {
-  const spec = COMMAND_REGISTRY[cmd];
-  if (!spec) {
+  if (!(cmd in COMMAND_REGISTRY)) {
     throw new Error(`Unknown command: ${cmd}`);
   }
+  const spec = COMMAND_REGISTRY[cmd as keyof typeof COMMAND_REGISTRY];
   return spec;
 }
 
@@ -206,9 +206,9 @@ function shouldRefreshSessionToken(response: Response): boolean {
 async function httpInvoke<T>(cmd: string, args?: unknown): Promise<T> {
   if (IGNORED_COMMANDS.has(cmd)) {
     if (cmd === 'write_frontend_log') {
-      console.log('[FrontendLog]', (args as { logEntry?: unknown } | undefined)?.logEntry);
+      logger.info('[FrontendLog]', (args as { logEntry?: unknown } | undefined)?.logEntry);
     } else {
-      console.warn(`[InvokeAdapter] Command "${cmd}" ignored in HTTP mode.`);
+      logger.warn(`[InvokeAdapter] Command "${cmd}" ignored in HTTP mode.`);
     }
     return undefined as T;
   }
@@ -255,7 +255,7 @@ async function httpInvoke<T>(cmd: string, args?: unknown): Promise<T> {
 
     return unwrapResponse<T>(await response.json());
   } catch (error) {
-    console.error(`HTTP Invoke failed for ${cmd}:`, error);
+    logger.error(`HTTP Invoke failed for ${cmd}:`, error);
     throw error;
   }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Upload } from 'lucide-react';
-import { Modal } from "antd";
+import { BaseDialog } from '@/components/base-ui/BaseDialog';
 import { useTranslation } from 'react-i18next';
 import { BasePasswordInput } from '@/components/base-ui/BaseInput.tsx';
 import { usePasswordDialogState } from '@/hooks/use-password-dialog-state.ts';
@@ -34,23 +34,11 @@ export const ImportPasswordDialog: React.FC<ImportPasswordDialogProps> = ({
   });
 
   return (
-    <Modal
+    <BaseDialog
       open={isOpen}
-      footer={null}
       onCancel={handleClose}
-      className="[&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:rounded-[24px] [&_.ant-modal-content]:border [&_.ant-modal-content]:border-border [&_.ant-modal-content]:bg-card/95 [&_.ant-modal-content]:shadow-[0_32px_80px_-40px_rgba(15,23,42,0.55)] [&_.ant-modal-content]:backdrop-blur-xl"
       width={520}
       style={{ top: 72 }}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: '20px 20px 0',
-          background: 'transparent',
-        },
-        body: {
-          padding: 0,
-        },
-      }}
       title={
         <div className="flex items-center gap-2 text-foreground">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm">
@@ -98,6 +86,6 @@ export const ImportPasswordDialog: React.FC<ImportPasswordDialogProps> = ({
           </button>
         </div>
       </div>
-    </Modal>
+    </BaseDialog>
   );
 };

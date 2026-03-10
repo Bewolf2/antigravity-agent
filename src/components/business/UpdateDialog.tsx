@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, RotateCw, AlertTriangle } from 'lucide-react';
 import { UpdateState, UpdateInfo, DownloadProgress } from '../../services/updateService';
-import { Modal } from 'antd';
+import { BaseDialog } from '@/components/base-ui/BaseDialog';
 import { BaseButton } from '@/components/base-ui/BaseButton';
 import { BaseProgress } from '@/components/base-ui/BaseProgress';
 import { resolveUpdatePresentation } from '@/components/business/update-presentation.ts';
@@ -181,23 +181,11 @@ const BusinessUpdateDialog: React.FC<BusinessUpdateDialogProps> = ({
   };
 
   return (
-    <Modal
+    <BaseDialog
       open={isOpen}
       onCancel={onClose}
-      footer={null}
-      className="[&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:rounded-[24px] [&_.ant-modal-content]:border [&_.ant-modal-content]:border-border [&_.ant-modal-content]:bg-card/95 [&_.ant-modal-content]:shadow-[0_32px_80px_-40px_rgba(15,23,42,0.55)] [&_.ant-modal-content]:backdrop-blur-xl"
       width={560}
       style={{ top: 72 }}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: '20px 20px 0',
-          background: 'transparent',
-        },
-        body: {
-          padding: 0,
-        },
-      }}
       title={
         <div className="flex items-center gap-2 text-foreground">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm">
@@ -215,7 +203,7 @@ const BusinessUpdateDialog: React.FC<BusinessUpdateDialogProps> = ({
       <div className="space-y-5 p-6">
         {renderContent()}
       </div>
-    </Modal>
+    </BaseDialog>
   );
 };
 

@@ -1,4 +1,4 @@
-import type { UserTier } from '@/modules/use-account-addition-data.ts';
+import type { UserTier } from '@/modules/use-account-data-store.ts';
 
 export interface AccountSessionListItem {
   geminiProQuote: number | -1;

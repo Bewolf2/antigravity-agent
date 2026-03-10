@@ -1,8 +1,10 @@
 import { create } from 'zustand';
+import toast from 'react-hot-toast';
 import { logger } from '../lib/logger.ts';
 import { AccountCommands } from '@/commands/AccountCommands.ts';
 import type { AntigravityAccount } from '@/commands/types/account.types.ts';
 import { AccountManageCommands } from "@/commands/AccountManageCommands.ts";
+import { formatError } from '@/lib/utils.ts';
 
 // 常量定义
 const FILE_WRITE_DELAY_MS = 500; // 等待文件写入完成的延迟时间
@@ -22,6 +24,7 @@ export interface AntigravityAccountActions {
 
   // 批量操作
   clearAllAccounts: () => Promise<void>;
+  signInNewAccount: () => Promise<void>;
 
   // 查询
   getAccounts: () => Promise<AntigravityAccount[]>;
@@ -45,7 +48,7 @@ export const useAntigravityAccount = create<AntigravityAccountState & Antigravit
       logger.error('用户删除失败', {
         module: 'UserManagement',
         email,
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
       throw error;
     }
@@ -76,7 +79,7 @@ export const useAntigravityAccount = create<AntigravityAccountState & Antigravit
     } catch (error) {
       logger.error('备份当前用户失败', {
         module: 'UserManagement',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
       throw error;
     }
@@ -90,7 +93,7 @@ export const useAntigravityAccount = create<AntigravityAccountState & Antigravit
       logger.error('切换用户失败', {
         module: 'UserManagement',
         email,
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
       throw error;
     }
@@ -104,6 +107,19 @@ export const useAntigravityAccount = create<AntigravityAccountState & Antigravit
     // 清空成功后重新获取数据
     const accounts = await AccountCommands.getAntigravityAccounts();
     set({ accounts: accounts });
+  },
+
+  signInNewAccount: async (): Promise<void> => {
+    try {
+      await AccountManageCommands.signInNewAntigravityAccount();
+    } catch (e) {
+      logger.error('登录新账户操作失败', {
+        module: 'AntigravityAccountStore',
+        error: e instanceof Error ? e.message : String(e)
+      });
+      toast.error('登录新账户操作失败');
+      throw e;
+    }
   },
 
   // ============ 查询 ============
@@ -121,7 +137,7 @@ export const useAntigravityAccount = create<AntigravityAccountState & Antigravit
     } catch (error) {
       logger.error('获取用户列表失败', {
         module: 'UserManagement',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
       // 如果读取失败，返回当前 store 中的用户
       return get().accounts;

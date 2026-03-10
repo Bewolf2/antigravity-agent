@@ -62,4 +62,12 @@ export class PlatformCommands {
   static async getCurrentPaths(): Promise<PathConfig> {
     return invokeCommand('get_current_paths');
   }
+
+  /**
+   * 检查 Antigravity 进程是否正在运行
+   * @returns 是否正在运行
+   */
+  static async isRunning(): Promise<boolean> {
+    return invokeCommand('is_antigravity_running');
+  }
 }

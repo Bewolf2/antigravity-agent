@@ -1,13 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
-import { Tooltip } from 'antd';
+import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, Variants } from 'motion/react';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from "@/lib/utils.ts";
 import { Avatar } from "@/components/ui/avatar.tsx";
 import { ArrowLeftRight, Crown, Gem, Play, Trash2, TriangleAlert } from 'lucide-react';
 import { useAntigravityIsRunning } from "@/hooks/use-antigravity-is-running.ts";
 import { BaseButton } from "@/components/base-ui/BaseButton.tsx";
-import { Variants } from "motion/react";
 import { LiquidProgressBar } from "@/components/ui/liquid-progress-bar.tsx";
 import { accountSessionMotion } from '@/components/business/account-session-motion.ts';
 import type { AccountSessionCardViewModel } from '@/components/business/account-session-types.ts';
@@ -68,10 +67,6 @@ const tierBadgeMap: Record<UserTier, React.ReactNode> = {
   "g1-ultra-tier": <span className="flex items-center gap-0.5 rounded-md border border-violet-300/60 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-bold leading-none text-violet-700 shadow-sm dark:text-violet-300"><Gem size={10} className="fill-current" />Ultra</span>,
 };
 
-const tooltipInnerStyle: React.CSSProperties = {
-  maxWidth: 520,
-  wordBreak: 'break-all',
-};
 
 
 // 容器变体：控制整体入场 + 协调子元素入场
@@ -100,10 +95,148 @@ const childVariants: Variants = {
   }
 };
 
+// ==========================================
+// 子元件: 特效層
+// ==========================================
+interface CardEffectsLayerProps {
+  tier: UserTier;
+  shouldReduceMotion: boolean;
+  springX: any;
+  springY: any;
+}
+
+function CardEffectsLayer({ tier, shouldReduceMotion, springX, springY }: CardEffectsLayerProps) {
+  return (
+    <>
+      {/* --- 特效层 A: 聚光灯 (鼠标跟随) --- */}
+      <motion.div
+        className="pointer-events-none absolute -inset-px z-0 rounded-2xl opacity-0 transition duration-500 group-hover:opacity-100"
+        style={{
+          background: useMotionTemplate`
+            radial-gradient(
+              650px circle at ${springX}px ${springY}px,
+              ${tier === 'g1-ultra-tier' ? 'rgba(167, 139, 250, 0.12)' : 'rgba(99,102,241,0.08)'},
+              transparent 80%
+            )
+          `
+        }}
+      />
+
+      {/* --- 特效层 B: Ultra 专属呼吸边框 --- */}
+      {tier === 'g1-ultra-tier' && !shouldReduceMotion && (
+        <motion.div
+          className="absolute inset-0 z-0 rounded-2xl border border-violet-400/30 pointer-events-none"
+          animate={{ opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: accountSessionMotion.card.ultraPulseDuration, repeat: Infinity, ease: "easeInOut" }}
+        />
+      )}
+    </>
+  );
+}
+
+// ==========================================
+// 子元件: 卡片头部
+// ==========================================
+interface CardHeaderProps {
+  displayName: string;
+  displayEmail: string;
+  userAvatar: string;
+  tier: UserTier;
+  isCurrentUser: boolean;
+}
+
+function CardHeader({ displayName, displayEmail, userAvatar, tier, isCurrentUser }: CardHeaderProps) {
+  const { t } = useTranslation(['account', 'common']);
+
+  return (
+    <motion.header
+      className="flex items-center gap-3 mb-1.5 relative"
+      variants={childVariants}
+    >
+      <Avatar
+        className={cn(
+          "h-10 w-10 rounded-full object-cover border-2 transition-all duration-300 shrink-0 ring-2 ring-offset-2",
+          tier === 'g1-ultra-tier'
+            ? "border-white/60 ring-white/20"
+            : isCurrentUser
+              ? "border-primary ring-primary/15"
+              : "border-border ring-background group-hover:border-primary/30 group-hover:ring-primary/10"
+        )}
+        src={userAvatar}
+        alt={displayName}
+      />
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1 min-w-0 pr-4">
+          <Tooltip content={displayName}>
+            <h2 className="flex-1 min-w-0 text-base font-bold leading-tight text-foreground line-clamp-1 break-words">
+              {displayName}
+            </h2>
+          </Tooltip>
+          <div className="mt-0.5 shrink-0">
+            {tierBadgeMap[tier] || <span className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground shadow-sm">{t('common:status.unknown')}</span>}
+          </div>
+        </div>
+        <Tooltip content={displayEmail}>
+          {/* 高度用于统一一行和两行对其 */}
+          <p className="h-[34px] break-all text-sm font-medium text-muted-foreground line-clamp-2">{displayEmail}</p>
+        </Tooltip>
+      </div>
+    </motion.header>
+  );
+}
+
+// ==========================================
+// 子元件: 卡片底部动作区
+// ==========================================
+interface CardActionsProps {
+  isRunning: boolean | null | undefined;
+  isCurrentUser: boolean;
+  onSwitch: () => void;
+  onDelete: () => void;
+}
+
+function CardActions({ isRunning, isCurrentUser, onSwitch, onDelete }: CardActionsProps) {
+  const { t } = useTranslation('account');
+
+  return (
+    <motion.div
+      className="relative mt-3 flex items-center justify-center gap-2"
+      variants={childVariants}
+    >
+      <BaseButton
+        onClick={e => {
+          e.stopPropagation();
+          onSwitch()
+        }}
+        disabled={(isRunning === false) ? false : isCurrentUser}
+        variant="outline"
+        leftIcon={(isRunning === false) ? <Play className="w-3 h-3" /> : <ArrowLeftRight className={"w-3 h-3"} />}
+      >
+        {(isRunning === false) ? t('actions.start') : t('actions.use')}
+      </BaseButton>
+      <BaseButton
+        onClick={e => {
+          e.stopPropagation()
+          onDelete()
+        }}
+        disabled={isCurrentUser}
+        variant="ghost"
+        rightIcon={<Trash2 className={"w-3 h-3"} />}
+      >
+        {t('actions.delete')}
+      </BaseButton>
+    </motion.div>
+  );
+}
+
+// ==========================================
+// 主元件
+// ==========================================
 export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete }: UserSessionCardProps) {
   const { t } = useTranslation(['account', 'common']);
   const isRunning = useAntigravityIsRunning(state => state.isRunning);
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion() ?? false;
   const {
     account: {
       tier,
@@ -151,7 +284,7 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
 
   const { boxShadow, hoverBoxShadow, ...otherStyles } = currentStyles;
 
-  // --- 1. 聚光灯 (Spotlight) 逻辑 ---
+  // --- 聚光灯 (Spotlight) 逻辑 ---
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -203,67 +336,12 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
         <div className="h-1.5 w-1 rounded-full bg-primary animate-[bounce_1s_infinite_200ms]"></div>
       </div>}
 
-      {/* --- 特效层 A: 聚光灯 (鼠标跟随) --- */}
-      <motion.div
-        className="pointer-events-none absolute -inset-px z-0 rounded-2xl opacity-0 transition duration-500 group-hover:opacity-100"
-        style={{
-          background: useMotionTemplate`
-            radial-gradient(
-              650px circle at ${springX}px ${springY}px,
-              ${tier === 'g1-ultra-tier' ? 'rgba(167, 139, 250, 0.12)' : 'rgba(99,102,241,0.08)'},
-              transparent 80%
-            )
-          `
-        }}
-      />
-
-      {/* --- 特效层 B: Ultra 专属呼吸边框 --- */}
-      {tier === 'g1-ultra-tier' && !shouldReduceMotion && (
-        <motion.div
-          className="absolute inset-0 z-0 rounded-2xl border border-violet-400/30 pointer-events-none"
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: accountSessionMotion.card.ultraPulseDuration, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
+      <CardEffectsLayer tier={tier} shouldReduceMotion={shouldReduceMotion} springX={springX} springY={springY} />
 
       {/* --- 内容层 (z-10 确保在特效之上) --- */}
       <div className="relative z-10">
 
-        {/* 头部区域 */}
-        <motion.header
-          className="flex items-center gap-3 mb-1.5 relative"
-          variants={childVariants}
-        >
-          <Avatar
-            className={cn(
-              "h-10 w-10 rounded-full object-cover border-2 transition-all duration-300 shrink-0 ring-2 ring-offset-2",
-              tier === 'g1-ultra-tier'
-                ? "border-white/60 ring-white/20"
-                : isCurrentUser
-                  ? "border-primary ring-primary/15"
-                  : "border-border ring-background group-hover:border-primary/30 group-hover:ring-primary/10"
-            )}
-            src={userAvatar}
-            alt={displayName}
-          />
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1 min-w-0 pr-4">
-              <Tooltip title={displayName} styles={{ container: tooltipInnerStyle }}>
-                <h2 className="flex-1 min-w-0 text-base font-bold leading-tight text-foreground line-clamp-1 break-words">
-                  {displayName}
-                </h2>
-              </Tooltip>
-              <div className="mt-0.5 shrink-0">
-                {tierBadgeMap[tier] || <span className="rounded-md border border-border bg-secondary px-1.5 py-0.5 text-[10px] font-bold leading-none text-muted-foreground shadow-sm">{t('common:status.unknown')}</span>}
-              </div>
-            </div>
-            <Tooltip title={displayEmail} styles={{ container: tooltipInnerStyle }}>
-              {/* 高度用于统一一行和两行对其 */}
-              <p className="h-[34px] break-all text-sm font-medium text-muted-foreground line-clamp-2">{displayEmail}</p>
-            </Tooltip>
-          </div>
-        </motion.header>
+        <CardHeader displayName={displayName} displayEmail={displayEmail} userAvatar={userAvatar} tier={tier} isCurrentUser={isCurrentUser} />
 
         {/* 进度条区域 */}
         <motion.div className="space-y-2" variants={childVariants}>
@@ -277,45 +355,14 @@ export function AccountSessionListCard({ viewModel, onSelect, onSwitch, onDelete
           ))}
         </motion.div>
 
-        {/* 底部交互区域 */}
-        <motion.div
-          className="relative mt-3 flex items-center justify-center gap-2"
-          variants={childVariants}
-        >
-          <BaseButton
-            onClick={e => {
-              e.stopPropagation();
-              onSwitch()
-            }}
-            disabled={(isRunning === false) ? false : isCurrentUser}
-            variant="outline"
-            leftIcon={(isRunning === false) ? <Play className="w-3 h-3" /> : <ArrowLeftRight className={"w-3 h-3"} />}
-          >
-            {(isRunning === false) ? t('account:actions.start') : t('account:actions.use')}
-          </BaseButton>
-          <BaseButton
-            onClick={e => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            disabled={isCurrentUser}
-            variant="ghost"
-            rightIcon={<Trash2 className={"w-3 h-3"} />}
-          >
-            {t('account:actions.delete')}
-          </BaseButton>
-        </motion.div>
+        <CardActions isRunning={isRunning} isCurrentUser={isCurrentUser} onSwitch={onSwitch} onDelete={onDelete} />
       </div>
       {!persisted && (
         <div className="absolute bottom-3 right-3 z-50">
-          <Tooltip title={
+          <Tooltip content={
             <div className="flex flex-col gap-0.5">
-              <span>
-                {t('account:warning.notPersisted.title')}
-              </span>
-              <span>
-                {t('account:warning.notPersisted.description')}
-              </span>
+              <span>{t('account:warning.notPersisted.title')}</span>
+              <span>{t('account:warning.notPersisted.description')}</span>
             </div>
           }>
             <TriangleAlert className="w-5 h-5 text-destructive transition-colors cursor-help hover:opacity-80" />

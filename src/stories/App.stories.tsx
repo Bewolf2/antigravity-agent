@@ -2,13 +2,12 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import App from '@/App.tsx';
 import { useAntigravityAccount } from '@/modules/use-antigravity-account.ts';
 import {
-  useAccountAdditionData,
+  useAccountDataStore,
   type AccountAdditionData,
-} from '@/modules/use-account-addition-data.ts';
+} from '@/modules/use-account-data-store.ts';
 import { useDbMonitoringStore } from '@/modules/db-monitoring-store';
 import { useAntigravityIsRunning } from '@/hooks/use-antigravity-is-running.ts';
 import { useImportExportAccount } from '@/modules/use-import-export-accounts.ts';
-import { useSignInNewAntigravityAccount } from '@/hooks/use-sign-in-new-antigravity-account.ts';
 import { PlatformCommands } from '@/commands/PlatformCommands.ts';
 import { TrayCommands } from '@/commands/TrayCommands.ts';
 import type { AntigravityAccount } from '@/commands/types/account.types.ts';
@@ -45,11 +44,16 @@ const seedMocks = (
     insertOrUpdateCurrentAccount: async () => { },
     switchToAccount: async () => { },
     clearAllAccounts: async () => { },
+    signInNewAccount: async () => { },
   });
 
-  useAccountAdditionData.setState({
-    data: additionData,
-    update: async () => { },
+  useAccountDataStore.setState({
+    additionData: additionData,
+    metadata: {},
+    updateAdditionData: async () => { },
+    setNickname: () => { },
+    setNotes: () => { },
+    getMeta: () => ({ }),
   });
 
   useDbMonitoringStore.setState({
@@ -86,11 +90,6 @@ const seedMocks = (
     submitExportPassword: async () => { },
     importConfig: async () => { },
     exportConfig: async () => { },
-  });
-
-  useSignInNewAntigravityAccount.setState({
-    processing: false,
-    run: async () => { },
   });
 };
 
@@ -179,11 +178,16 @@ export const ActiveAccountPinned: Story = {
       insertOrUpdateCurrentAccount: async () => { },
       switchToAccount: async () => { },
       clearAllAccounts: async () => { },
+      signInNewAccount: async () => { },
     });
 
-    useAccountAdditionData.setState({
-      data: modifiedAdditionData,
-      update: async () => { },
+    useAccountDataStore.setState({
+      additionData: modifiedAdditionData,
+      metadata: {},
+      updateAdditionData: async () => { },
+      setNickname: () => { },
+      setNotes: () => { },
+      getMeta: () => ({ }),
     });
 
     useDbMonitoringStore.setState({
@@ -220,11 +224,6 @@ export const ActiveAccountPinned: Story = {
       submitExportPassword: async () => { },
       importConfig: async () => { },
       exportConfig: async () => { },
-    });
-
-    useSignInNewAntigravityAccount.setState({
-      processing: false,
-      run: async () => { },
     });
 
     return <App />;

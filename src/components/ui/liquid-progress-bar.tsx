@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { cn } from "@/lib/utils";
 import { Clock, HelpCircle } from 'lucide-react';
 import ClaudeIcon from '@/assets/icons/claude.png';
@@ -7,7 +7,7 @@ import GeminiImageIcon from '@/assets/icons/nano_banana.png';
 import GeminiProIcon from '@/assets/icons/gemini_pro.png';
 import GeminiFlashIcon from '@/assets/icons/gemini_flash.png';
 import dayjs from "dayjs";
-import { Tooltip } from "antd";
+import { Tooltip } from '@/components/ui/tooltip';
 import { useTranslation } from "react-i18next";
 
 type LiquidProgressBarType = 'gemini-pro' | 'gemini-flash' | 'claude' | 'gemini-image';
@@ -128,7 +128,7 @@ export function LiquidProgressBar({
           )}
 
           {!isUnknown && finalShowTimer && (
-            <Tooltip title={`${t('status.resetTime')}: ${dayjs.utc(resetIn).toDate().toLocaleString()}`} placement="top">
+            <Tooltip content={`${t('status.resetTime')}: ${dayjs.utc(resetIn).toDate().toLocaleString()}`} placement="top">
               <div
                 className={cn(
                   'flex cursor-help items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none transition-colors',

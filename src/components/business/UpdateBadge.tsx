@@ -4,10 +4,10 @@ import { useUpdateChecker } from '@/hooks/use-update-checker.ts';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger.ts';
 import BusinessUpdateDialog from '@/components/business/UpdateDialog.tsx';
-import { cn } from '@/lib/utils.ts';
+import { cn, formatError } from '@/lib/utils.ts';
 import { AlertTriangle, Download, Loader2, RotateCw } from 'lucide-react';
 import type { DownloadProgress, UpdateInfo, UpdateState } from '@/services/updateService.ts';
-import { Tooltip } from "antd";
+import { Tooltip } from '@/components/ui/tooltip';
 import { BadgeVariant, resolveUpdatePresentation } from '@/components/business/update-presentation.ts';
 import type { UpdateBadgeIcon } from '@/components/business/update-presentation.ts';
 
@@ -115,7 +115,7 @@ const UpdateBadge: React.FC<UpdateBadgeProps> = ({
       logger.error('下载失败', {
         module: 'AppDock',
         action: 'download_update_failed',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
     }
   };
@@ -131,7 +131,7 @@ const UpdateBadge: React.FC<UpdateBadgeProps> = ({
       logger.error('安装失败', {
         module: 'AppDock',
         action: 'install_update_failed',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
     }
   };
@@ -152,7 +152,7 @@ const UpdateBadge: React.FC<UpdateBadgeProps> = ({
   return (
     <>
       {/* 更新徽章 */}
-      <Tooltip title={presentation.tooltipContent}>
+      <Tooltip content={presentation.tooltipContent}>
         <button
           type="button"
           onClick={handleUpdateBadgeClick}

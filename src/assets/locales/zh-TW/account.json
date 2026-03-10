@@ -1,7 +1,8 @@
 {
   "actions": {
     "delete": "刪除",
-    "use": "使用"
+    "use": "使用",
+    "start": "啟動"
   },
   "tooltip": {
     "currentSession": "目前工作階段"
@@ -9,8 +10,12 @@
   "warning": {
     "unknownTier": {
       "title": "當您看到這個符號說明開發者內建的資料未能涵蓋目前帳戶層級",
-      "description": "這不是您的問題，為了區決這個問題，您可以將該提示截圖",
+      "description": "這不是您的問題，為了解決這個問題，您可以將該提示截圖",
       "reportLink": "提供給開發者"
+    },
+    "notPersisted": {
+      "title": "帳戶憑證尚未儲存",
+      "description": "Antigravity (>=1.16.5) 僅在程式關閉時儲存憑證，請先完整關閉 Antigravity 一次以完成儲存。"
     }
   },
   "accountDetail": {

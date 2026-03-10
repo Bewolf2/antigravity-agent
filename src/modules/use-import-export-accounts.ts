@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { AccountManageCommands } from "@/commands/AccountManageCommands.ts";
 import { BackupData } from "@/commands/types/account-manage.types.ts";
 import i18n from '@/i18n';
+import { formatError } from '@/lib/utils.ts';
 
 interface EncryptedConfigData {
   version: string;
@@ -144,9 +145,9 @@ export const useImportExportAccount = create<ConfigState & ConfigActions>()(
           logger.error('导入失败', {
             module: 'useImportExportAccount',
             stage: 'import_process',
-            error: error instanceof Error ? error.message : String(error)
+            error: formatError(error)
           });
-          toast.error(i18n.t('notifications:backup.importFailed', { error: error instanceof Error ? error.message : String(error) }));
+          toast.error(i18n.t('notifications:backup.importFailed', { error: formatError(error) }));
         } finally {
           set({ isImporting: false });
         }
@@ -222,9 +223,9 @@ export const useImportExportAccount = create<ConfigState & ConfigActions>()(
           logger.error('导出失败', {
             module: 'useImportExportAccount',
             stage: 'password_validation',
-            error: error instanceof Error ? error.message : String(error)
+            error: formatError(error)
           });
-          toast.error(i18n.t('notifications:backup.exportFailed', { error: error instanceof Error ? error.message : String(error) }));
+          toast.error(i18n.t('notifications:backup.exportFailed', { error: formatError(error) }));
         } finally {
           set({ isExporting: false });
         }
@@ -271,9 +272,9 @@ export const useImportExportAccount = create<ConfigState & ConfigActions>()(
           logger.error('文件操作失败', {
             module: 'useImportExportAccount',
             stage: 'file_selection',
-            error: error instanceof Error ? error.message : String(error)
+            error: formatError(error)
           });
-          // toast.error(`文件操作失败: ${error instanceof Error ? error.message : String(error)}`);
+          // toast.error(`文件操作失败: ${formatError(error)}`);
         }
       },
 
@@ -307,9 +308,9 @@ export const useImportExportAccount = create<ConfigState & ConfigActions>()(
           logger.error('检查数据失败', {
             module: 'useImportExportAccount',
             stage: 'data_collection',
-            error: error instanceof Error ? error.message : String(error)
+            error: formatError(error)
           });
-          toast.error(i18n.t('notifications:backup.exportFailed', { error: error instanceof Error ? error.message : String(error) }));
+          toast.error(i18n.t('notifications:backup.exportFailed', { error: formatError(error) }));
         }
       }
     };

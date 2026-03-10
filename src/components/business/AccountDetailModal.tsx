@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Check, Copy, Key, User, FileJson } from 'lucide-react';
 import dayjs from 'dayjs';
 import { BaseButton } from '@/components/base-ui/BaseButton';
-import { cn } from '@/lib/utils.ts';
+import { cn, formatError } from '@/lib/utils.ts';
 import { logger } from '@/lib/logger.ts';
-import { Modal } from "antd";
+import { BaseDialog } from '@/components/base-ui/BaseDialog';
 import type { AccountSessionDetailAccount } from '@/components/business/account-session-types.ts';
 import { Avatar } from "@/components/ui/avatar.tsx";
 import { useAppSettings } from "@/modules/use-app-settings.ts";
@@ -77,7 +77,7 @@ const BusinessUserDetail: React.FC<BusinessUserDetailProps> = ({
       logger.error('复制失败', {
         module: 'UserDetail',
         action: 'copy_failed',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
     }
   };
@@ -104,7 +104,7 @@ const BusinessUserDetail: React.FC<BusinessUserDetailProps> = ({
       logger.error('复制 JSON 失败', {
         module: 'UserDetail',
         action: 'copy_json_failed',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
     }
   };
@@ -157,52 +157,58 @@ const BusinessUserDetail: React.FC<BusinessUserDetailProps> = ({
     </div>
   );
 
+// ==========================================
+// 子元件: 對話框頭部
+// ==========================================
+interface DialogHeaderProps {
+  email: string;
+  copiedField: string | null;
+  privateMode: boolean;
+  onCopyJson: () => Promise<void>;
+}
+
+function DialogHeader({ email, copiedField, privateMode, onCopyJson }: DialogHeaderProps) {
+  const { t } = useTranslation('account');
+
+  return (
+    <div className="flex items-center justify-between gap-3 pr-8">
+      <div className="flex items-center gap-2 text-foreground">
+        <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm">
+          <User className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <div className="text-base font-semibold leading-none">{t('accountDetail.title')}</div>
+          <div className="mt-1 text-xs font-normal text-muted-foreground">{privateMode ? maskEmail(email) : email}</div>
+        </div>
+      </div>
+      <BaseButton
+        variant="ghost"
+        size="sm"
+        className="h-8 gap-1.5 rounded-xl text-xs"
+        onClick={onCopyJson}
+        disabled={privateMode}
+      >
+        {copiedField === 'json' ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <FileJson className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+        {t('accountDetail.copyJson', 'Copy JSON')}
+      </BaseButton>
+    </div>
+  );
+}
+
   if (!account) return null;
 
   return (
-    <Modal
-      footer={null}
+    <BaseDialog
       open={isOpen}
       onCancel={() => onOpenChange(false)}
-      className="[&_.ant-modal-content]:overflow-hidden [&_.ant-modal-content]:rounded-[24px] [&_.ant-modal-content]:border [&_.ant-modal-content]:border-border [&_.ant-modal-content]:bg-card/95 [&_.ant-modal-content]:shadow-[0_32px_80px_-40px_rgba(15,23,42,0.55)] [&_.ant-modal-content]:backdrop-blur-xl"
       width={620}
       style={{ top: 60 }}
-      styles={{
-        header: {
-          marginBottom: 0,
-          padding: '20px 20px 0',
-          background: 'transparent',
-        },
-        body: {
-          padding: 0,
-        },
-      }}
       title={
-        <div className="flex items-center justify-between gap-3 pr-8">
-          <div className="flex items-center gap-2 text-foreground">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border/70 bg-background/80 shadow-sm">
-              <User className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-base font-semibold leading-none">{t('accountDetail.title')}</div>
-              <div className="mt-1 text-xs font-normal text-muted-foreground">{privateMode ? maskEmail(account.email) : account.email}</div>
-            </div>
-          </div>
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs"
-            onClick={copyAsJson}
-            disabled={privateMode}
-          >
-            {copiedField === 'json' ? (
-              <Check className="h-3.5 w-3.5 text-emerald-500" />
-            ) : (
-              <FileJson className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            {t('accountDetail.copyJson', 'Copy JSON')}
-          </BaseButton>
-        </div>
+        <DialogHeader email={account.email} copiedField={copiedField} privateMode={privateMode} onCopyJson={copyAsJson} />
       }
     >
       <div className="max-h-[70vh] space-y-6 overflow-y-auto p-6">
@@ -246,7 +252,7 @@ const BusinessUserDetail: React.FC<BusinessUserDetailProps> = ({
           />
         </div>
       </div>
-    </Modal>
+    </BaseDialog>
   );
 };
 
