@@ -48,13 +48,14 @@ async fn ensure_valid_token_with_refresh(
     match google_api::get_valid_token(email, access_token).await {
         Ok(info) => Ok((info, access_token.to_string())),
         Err(error) => {
-            let is_unauthorized = error.contains("401") || error.contains("Unauthorized");
+            let error_str = error.to_string();
+            let is_unauthorized = error_str.contains("401") || error_str.contains("Unauthorized");
             if !is_unauthorized {
-                return Err(error);
+                return Err(error_str);
             }
 
             let refresh_token = refresh_token.ok_or_else(|| {
-                format!("Token expired (401) and no refresh token is available: {error}")
+                format!("Token expired (401) and no refresh token is available: {error_str}")
             })?;
 
             let new_access_token = google_api::refresh_access_token(refresh_token)
@@ -80,13 +81,18 @@ pub async fn get_metrics(
 ) -> Result<AccountMetrics, String> {
     use crate::services::google_api;
 
-    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email).await?;
+    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email)
+        .await
+        .map_err(|e| e.to_string())?;
     let (token_info, valid_access_token) =
         ensure_valid_token_with_refresh(&email, &access_token, refresh_token.as_deref()).await?;
 
     let project = google_api::fetch_code_assist_project(&valid_access_token)
         .await
-        .map_err(|e| tracing::warn!(email = %email, "Failed to fetch project id: {e}"))
+        .map_err(|e| {
+            tracing::warn!(email = %email, "Failed to fetch project id: {e}");
+            e.to_string()
+        })
         .ok();
 
     let quotas = if let Some(ref project_id) = project {
@@ -119,7 +125,9 @@ pub async fn trigger_quota_refresh(
 
     tracing::info!(email = %email, "Checking quotas and triggering refresh when needed");
 
-    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email).await?;
+    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email)
+        .await
+        .map_err(|e| e.to_string())?;
     let (token_info, valid_access_token) =
         ensure_valid_token_with_refresh(&email, &access_token, refresh_token.as_deref())
             .await

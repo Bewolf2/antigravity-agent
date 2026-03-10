@@ -6,6 +6,7 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use crate::services::ServiceError;
 
 const V2_PREFIX: &str = "v2:";
 const KDF_ITERATIONS: u32 = 210_000;
@@ -135,28 +136,28 @@ fn decrypt_legacy_xor(encrypted_data: &str, password: &str) -> Result<String, St
 }
 
 /// 加密配置数据（用于账户导出）
-pub async fn encrypt_config_data(json_data: String, password: String) -> Result<String, String> {
+pub async fn encrypt_config_data(json_data: String, password: String) -> Result<String, ServiceError> {
     if password.is_empty() {
-        return Err("密码不能为空".to_string());
+        return Err(ServiceError::Validation("密码不能为空".to_string()));
     }
 
-    encrypt_v2(&json_data, &password)
+    encrypt_v2(&json_data, &password).map_err(|e| ServiceError::Internal(e))
 }
 
 /// 解密配置数据（用于账户导入）
 pub async fn decrypt_config_data(
     encrypted_data: String,
     password: String,
-) -> Result<String, String> {
+) -> Result<String, ServiceError> {
     if password.is_empty() {
-        return Err("密码不能为空".to_string());
+        return Err(ServiceError::Validation("密码不能为空".to_string()));
     }
 
     if encrypted_data.starts_with(V2_PREFIX) {
-        return decrypt_v2(&encrypted_data, &password);
+        return decrypt_v2(&encrypted_data, &password).map_err(|e| ServiceError::Internal(e));
     }
 
-    decrypt_legacy_xor(&encrypted_data, &password)
+    decrypt_legacy_xor(&encrypted_data, &password).map_err(|e| ServiceError::Internal(e))
 }
 
 #[cfg(test)]

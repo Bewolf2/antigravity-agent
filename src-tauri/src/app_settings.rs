@@ -103,7 +103,7 @@ impl AppSettingsManager {
 
     /// 获取当前设置的副本
     pub fn get_settings(&self) -> AppSettings {
-        self.settings.lock().unwrap().clone()
+        self.settings.lock().expect("settings lock poisoned").clone()
     }
 
     /// 更新设置
@@ -111,7 +111,7 @@ impl AppSettingsManager {
     where
         F: FnOnce(&mut AppSettings),
     {
-        let mut settings = self.settings.lock().unwrap();
+        let mut settings = self.settings.lock().expect("settings lock poisoned");
 
         // 记录更新前的状态用于日志
         let old_silent_start = settings.silent_start_enabled;

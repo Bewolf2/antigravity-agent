@@ -216,9 +216,15 @@ impl ConnectionManager {
     /// - `message`: 要广播的 WebSocket 消息
     pub fn broadcast(&self, message: WsMessage) {
         let clients = self.clients.read();
-        let json = serde_json::to_string(&message).unwrap();
-        for client in clients.values() {
-            client.addr.do_send(TextMessage(json.clone()));
+        match serde_json::to_string(&message) {
+            Ok(json) => {
+                for client in clients.values() {
+                    client.addr.do_send(TextMessage(json.clone()));
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize WebSocket message");
+            }
         }
     }
 

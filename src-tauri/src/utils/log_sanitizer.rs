@@ -18,10 +18,10 @@ pub struct LogSanitizer {
 impl Default for LogSanitizer {
     fn default() -> Self {
         Self {
-            email_regex: Regex::new(r"(?i)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
-            api_key_regex: Regex::new(r"(?i)(?P<prefix>key|token|secret|api[-_]?key|access[-_]?token)[\s=:]+(?P<key>[a-zA-Z0-9+/=_-]{20,})").unwrap(),
-            user_home_regex: Regex::new(r"(?P<prefix>/home/[^/]+)").unwrap(),
-            windows_user_regex: Regex::new(r"C:\\\\Users\\\\[^\\\\]+").unwrap(),
+            email_regex: Regex::new(r"(?i)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").expect("invalid regex pattern"),
+            api_key_regex: Regex::new(r"(?i)(?P<prefix>key|token|secret|api[-_]?key|access[-_]?token)[\s=:]+(?P<key>[a-zA-Z0-9+/=_-]{20,})").expect("invalid regex pattern"),
+            user_home_regex: Regex::new(r"(?P<prefix>/home/[^/]+)").expect("invalid regex pattern"),
+            windows_user_regex: Regex::new(r"C:\\\\Users\\\\[^\\\\]+").expect("invalid regex pattern"),
         }
     }
 }
@@ -116,7 +116,7 @@ impl LogSanitizer {
         if result.contains("C:\\Users\\") {
             // 使用更简单的替换方式
             result = regex::Regex::new(r"C:\\\\Users\\\\[^\\\\]+")
-                .unwrap()
+                .expect("invalid regex pattern")
                 .replace_all(&result, "~")
                 .to_string();
         }

@@ -48,7 +48,7 @@ fn clear_database(db_path: &Path, db_name: &str) -> Result<usize, String> {
 pub async fn clear_all_antigravity_data() -> Result<String, String> {
     tracing::info!(target: "cleanup::main", "开始清除 Antigravity 用户认证数据");
 
-    let app_data = resolve_antigravity_db_path()?;
+    let app_data = resolve_antigravity_db_path().map_err(|e| e.to_string())?;
 
     let mut msg = String::new();
 

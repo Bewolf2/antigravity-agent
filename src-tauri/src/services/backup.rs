@@ -1,3 +1,4 @@
+use crate::services::account::{list_json_files, validate_account_file_name};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -34,13 +35,6 @@ fn backup_filename_regex() -> &'static Regex {
     static BACKUP_FILENAME_RE: OnceLock<Regex> = OnceLock::new();
     BACKUP_FILENAME_RE.get_or_init(|| {
         Regex::new(r"^[A-Za-z0-9._-]+\.json$").expect("backup filename regex must be valid")
-    })
-}
-
-fn backup_name_regex() -> &'static Regex {
-    static BACKUP_NAME_RE: OnceLock<Regex> = OnceLock::new();
-    BACKUP_NAME_RE.get_or_init(|| {
-        Regex::new(r"^[A-Za-z0-9._-]+$").expect("backup name regex must be valid")
     })
 }
 
@@ -81,13 +75,7 @@ fn validate_restore_filename(filename: &str) -> Result<(), String> {
 }
 
 fn validate_delete_name(name: &str) -> Result<(), String> {
-    validate_simple_name(
-        name,
-        "名称不能为空",
-        "名称包含非法路径分隔符",
-        "名称格式非法，仅允许 [A-Za-z0-9._-]",
-        backup_name_regex(),
-    )
+    validate_account_file_name(name).map_err(|e| e.to_string())
 }
 
 fn ensure_safe_restore_target(path: &Path) -> Result<(), String> {
@@ -109,42 +97,37 @@ pub async fn collect_contents(
     // 读取Antigravity账户目录中的JSON文件
     let antigravity_dir = config_dir.join("antigravity-accounts");
 
-    for entry in fs::read_dir(&antigravity_dir).map_err(|e| format!("读取用户目录失败: {}", e))?
+    for path in
+        list_json_files(&antigravity_dir).map_err(|e| format!("读取用户目录失败: {}", e.to_string()))?
     {
-        let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;
-        let path = entry.path();
+        let filename = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
 
-        if path.extension().is_some_and(|ext| ext == "json") {
-            let filename = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(|s| s.to_string())
-                .unwrap_or_default();
+        if filename.is_empty() {
+            continue;
+        }
 
-            if filename.is_empty() {
-                continue;
-            }
-
-            match fs::read_to_string(&path).map_err(|e| format!("读取文件失败 {}: {}", filename, e))
-            {
-                Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json_value) => {
-                        backups_with_content.push(AccountExportedData {
-                            filename,
-                            content: json_value,
-                            timestamp: SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs(),
-                        });
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "backup::scan", filename = %filename, error = %e, "跳过损坏的备份文件");
-                    }
-                },
-                Err(_) => {
-                    tracing::warn!(target: "backup::scan", filename = %filename, "跳过无法读取的文件");
+        match fs::read_to_string(&path).map_err(|e| format!("读取文件失败 {}: {}", filename, e)) {
+            Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(json_value) => {
+                    backups_with_content.push(AccountExportedData {
+                        filename,
+                        content: json_value,
+                        timestamp: SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                    });
                 }
+                Err(e) => {
+                    tracing::warn!(target: "backup::scan", filename = %filename, error = %e, "跳过损坏的备份文件");
+                }
+            },
+            Err(_) => {
+                tracing::warn!(target: "backup::scan", filename = %filename, "跳过无法读取的文件");
             }
         }
     }
@@ -216,7 +199,7 @@ pub async fn delete(config_dir: &std::path::Path, name: String) -> Result<String
 
     // 只删除Antigravity账户JSON文件
     let antigravity_dir = config_dir.join("antigravity-accounts");
-    let antigravity_file = antigravity_dir.join(format!("{}.json", name));
+    let antigravity_file = antigravity_dir.join(format!("antigravity-{}.json", name));
 
     fs::remove_file(&antigravity_file).map_err(|e| format!("删除用户文件失败: {}", e))?;
     Ok(format!("删除用户成功: {}", name))
@@ -226,19 +209,14 @@ pub async fn delete(config_dir: &std::path::Path, name: String) -> Result<String
 pub async fn clear_all(config_dir: &std::path::Path) -> Result<String, String> {
     let antigravity_dir = config_dir.join("antigravity-accounts");
 
-    // 读取目录中的所有文件
+    // 只删除 JSON 文件
     let mut deleted_count = 0;
-    for entry in fs::read_dir(&antigravity_dir).map_err(|e| format!("读取用户目录失败: {}", e))?
+    for path in
+        list_json_files(&antigravity_dir).map_err(|e| format!("读取用户目录失败: {}", e.to_string()))?
     {
-        let entry = entry.map_err(|e| format!("读取目录项失败: {}", e))?;
-        let path = entry.path();
-
-        // 只删除 JSON 文件
-        if path.extension().is_some_and(|ext| ext == "json") {
-            fs::remove_file(&path)
-                .map_err(|e| format!("删除文件 {} 失败: {}", path.display(), e))?;
-            deleted_count += 1;
-        }
+        fs::remove_file(&path)
+            .map_err(|e| format!("删除文件 {} 失败: {}", path.display(), e))?;
+        deleted_count += 1;
     }
 
     Ok(format!(

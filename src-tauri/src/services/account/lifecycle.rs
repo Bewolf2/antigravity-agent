@@ -58,7 +58,7 @@ pub async fn get_all(config_dir: &Path) -> Result<Vec<AntigravityAccountResponse
     tracing::debug!("Starting account list load");
 
     let mut accounts_with_modified_time = Vec::new();
-    let files = list_backup_json_files(config_dir)?;
+    let files = list_backup_json_files(config_dir).map_err(|e| e.to_string())?;
 
     for path in files {
         let context = path
@@ -66,8 +66,20 @@ pub async fn get_all(config_dir: &Path) -> Result<Vec<AntigravityAccountResponse
             .and_then(|name| name.to_str())
             .unwrap_or("unknown")
             .to_string();
-        let fields = parse_backup_file(&path)?;
-        let account = parse_account_response(&fields, &context)?;
+        let fields = match parse_backup_file(&path) {
+            Ok(f) => f,
+            Err(e) => {
+                tracing::warn!("跳過無法解析的備份檔案 {}: {}", path.display(), e);
+                continue;
+            }
+        };
+        let account = match parse_account_response(&fields, &context) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!("跳過無效帳戶資料 {}: {}", path.display(), e);
+                continue;
+            }
+        };
         accounts_with_modified_time.push((backup_file_modified_time(&path), account));
     }
 
@@ -81,13 +93,13 @@ pub async fn get_all(config_dir: &Path) -> Result<Vec<AntigravityAccountResponse
 
 pub async fn get_current() -> Result<AntigravityAccountResponse, String> {
     tracing::debug!("Loading current account from database");
-    let fields = load_current_raw_account_fields()?;
+    let fields = load_current_raw_account_fields().map_err(|e| e.to_string())?;
     parse_account_response(&fields, "current database state")
 }
 
 pub async fn backup_current() -> Result<CommandResult, String> {
     tracing::info!("Backing up current Antigravity account");
-    let fields = load_current_raw_account_fields()?;
+    let fields = load_current_raw_account_fields().map_err(|e| e.to_string())?;
     let auth_status = parse_auth_status_to_value(&fields.auth_status)?;
 
     let account_file_name = auth_status
@@ -97,7 +109,7 @@ pub async fn backup_current() -> Result<CommandResult, String> {
         .filter(|email| !email.is_empty())
         .ok_or_else(|| "Email is missing in antigravityAuthStatus".to_string())?;
 
-    let account_file = write_backup_file(account_file_name, &fields)?;
+    let account_file = write_backup_file(account_file_name, &fields).map_err(|e| e.to_string())?;
     let message = format!("Account backup saved to {}", account_file.display());
 
     Ok(
@@ -121,7 +133,7 @@ pub async fn clear_all_data() -> Result<CommandResult, String> {
 
 pub async fn restore(account_name: String) -> Result<CommandResult, String> {
     tracing::info!(account_name = %account_name, "Restoring account backup");
-    let account_file = resolve_backup_file_path(&account_name)?;
+    let account_file = resolve_backup_file_path(&account_name).map_err(|e| e.to_string())?;
 
     let restore_message =
         crate::antigravity::restore::save_antigravity_account_to_file(account_file)
@@ -149,7 +161,7 @@ pub async fn switch(account_name: String) -> Result<CommandResult, String> {
         .await
         .map_err(|e| format!("Failed to clear Antigravity data before switch: {e}"))?;
 
-    let account_file = resolve_backup_file_path(&account_name)?;
+    let account_file = resolve_backup_file_path(&account_name).map_err(|e| e.to_string())?;
     let restore_message =
         crate::antigravity::restore::save_antigravity_account_to_file(account_file)
             .await
