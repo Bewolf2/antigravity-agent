@@ -1,2 +1,6 @@
+packages:
+  - "."
+  - "vscode-extension"
+
 allowBuilds:
   esbuild: true
