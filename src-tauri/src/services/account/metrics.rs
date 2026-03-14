@@ -2,32 +2,39 @@ use super::types::{AccountMetrics, QuotaItem, TriggerResult};
 use serde_json::Value;
 
 struct ModelTarget {
+    /// Exact key or prefix to match against available model keys.
+    /// Prefix matches are used when `prefix_match` is true.
     key: &'static str,
     display_name: &'static str,
+    prefix_match: bool,
 }
 
 const MODEL_TARGETS: [ModelTarget; 4] = [
     ModelTarget {
         key: "gemini-3.1-pro-high",
         display_name: "Gemini Pro",
+        prefix_match: false,
     },
     ModelTarget {
         key: "gemini-3-flash",
         display_name: "Gemini Flash",
+        prefix_match: false,
     },
     ModelTarget {
         key: "gemini-3.1-flash-image",
         display_name: "Gemini Image",
+        prefix_match: false,
     },
     ModelTarget {
-        key: "claude-opus-4-6-thinking",
+        key: "claude-opus",
         display_name: "Claude",
+        prefix_match: true,
     },
 ];
 
 #[derive(Debug, Clone)]
 struct ParsedQuota {
-    model_key: &'static str,
+    model_key: String,
     item: QuotaItem,
 }
 
@@ -41,13 +48,14 @@ async fn ensure_valid_token_with_refresh(
     match google_api::get_valid_token(email, access_token).await {
         Ok(info) => Ok((info, access_token.to_string())),
         Err(error) => {
-            let is_unauthorized = error.contains("401") || error.contains("Unauthorized");
+            let error_str = error.to_string();
+            let is_unauthorized = error_str.contains("401") || error_str.contains("Unauthorized");
             if !is_unauthorized {
-                return Err(error);
+                return Err(error_str);
             }
 
             let refresh_token = refresh_token.ok_or_else(|| {
-                format!("Token expired (401) and no refresh token is available: {error}")
+                format!("Token expired (401) and no refresh token is available: {error_str}")
             })?;
 
             let new_access_token = google_api::refresh_access_token(refresh_token)
@@ -73,27 +81,37 @@ pub async fn get_metrics(
 ) -> Result<AccountMetrics, String> {
     use crate::services::google_api;
 
-    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email).await?;
+    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email)
+        .await
+        .map_err(|e| e.to_string())?;
     let (token_info, valid_access_token) =
         ensure_valid_token_with_refresh(&email, &access_token, refresh_token.as_deref()).await?;
 
     let project = google_api::fetch_code_assist_project(&valid_access_token)
         .await
-        .map_err(|e| format!("Failed to fetch project id: {e}"))?;
+        .map_err(|e| {
+            tracing::warn!(email = %email, "Failed to fetch project id: {e}");
+            e.to_string()
+        })
+        .ok();
 
-    let models_json = google_api::fetch_available_models(&valid_access_token, &project)
-        .await
-        .map_err(|e| format!("Failed to fetch models: {e}"))?;
-
-    let quotas = parse_quotas_for_targets(&models_json)
-        .into_iter()
-        .map(|quota| quota.item)
-        .collect();
+    let quotas = if let Some(ref project_id) = project {
+        let models_json = google_api::fetch_available_models(&valid_access_token, project_id)
+            .await
+            .map_err(|e| format!("Failed to fetch models: {e}"))?;
+        parse_quotas_for_targets(&models_json)
+            .into_iter()
+            .map(|quota| quota.item)
+            .collect()
+    } else {
+        vec![]
+    };
 
     Ok(AccountMetrics {
         email,
         user_id: token_info.user_id,
         avatar_url: token_info.avatar_url,
+        project_id: project,
         quotas,
     })
 }
@@ -107,7 +125,9 @@ pub async fn trigger_quota_refresh(
 
     tracing::info!(email = %email, "Checking quotas and triggering refresh when needed");
 
-    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email).await?;
+    let (email, access_token, refresh_token) = google_api::load_account(config_dir, &email)
+        .await
+        .map_err(|e| e.to_string())?;
     let (token_info, valid_access_token) =
         ensure_valid_token_with_refresh(&email, &access_token, refresh_token.as_deref())
             .await
@@ -140,7 +160,7 @@ pub async fn trigger_quota_refresh(
 
     for quota in parsed_quotas {
         if quota.item.percentage > 0.9999 {
-            match trigger_minimal_query(&token_info.access_token, &project, quota.model_key).await {
+            match trigger_minimal_query(&token_info.access_token, &project, &quota.model_key).await {
                 Ok(()) => triggered_models.push(quota.item.model_name.clone()),
                 Err(error) => {
                     error!(
@@ -199,17 +219,17 @@ fn parse_quotas_for_targets(models_json: &Value) -> Vec<ParsedQuota> {
     MODEL_TARGETS
         .iter()
         .filter_map(|target| {
-            let model_data = match models_map.get(target.key) {
-                Some(data) => data,
-                None => {
-                    tracing::warn!(
-                        target_key = %target.key,
-                        display_name = %target.display_name,
-                        "Model key NOT found in API response"
-                    );
-                    return None;
-                }
+            let (matched_key, model_data) = if target.prefix_match {
+                // Find the first model key that starts with the prefix
+                models_map
+                    .iter()
+                    .find(|(k, _)| k.starts_with(target.key))
+                    .map(|(k, v)| (k.as_str(), v))?
+            } else {
+                let data = models_map.get(target.key)?;
+                (target.key, data)
             };
+
             let quota_info = model_data.get("quotaInfo")?;
 
             let percentage = quota_info
@@ -223,14 +243,14 @@ fn parse_quotas_for_targets(models_json: &Value) -> Vec<ParsedQuota> {
                 .to_string();
 
             tracing::debug!(
-                target_key = %target.key,
-                display_name = %target.display_name,
-                percentage = %percentage,
-                "Model quota parsed successfully"
+                target_key = target.key,
+                matched_key = matched_key,
+                display_name = target.display_name,
+                "Matched model for quota"
             );
 
             Some(ParsedQuota {
-                model_key: target.key,
+                model_key: matched_key.to_string(),
                 item: QuotaItem {
                     model_name: target.display_name.to_string(),
                     percentage,

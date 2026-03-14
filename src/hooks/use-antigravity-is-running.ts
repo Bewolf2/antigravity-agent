@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { ProcessCommands } from '@/commands/ProcessCommands';
 import { logger } from '../lib/logger.ts';
+import { formatError } from '@/lib/utils.ts';
 
 // 状态接口
 interface AntigravityIsRunningState {
@@ -33,7 +34,7 @@ interface AntigravityIsRunningActions {
 const listeners = new Set<(isRunning: boolean) => void>();
 
 // 全局定时器 ID
-let checkIntervalId: NodeJS.Timeout | null = null;
+let checkIntervalId: ReturnType<typeof setInterval> | null = null;
 
 // 检查间隔（5 秒）
 const CHECK_INTERVAL = 5000;
@@ -76,7 +77,7 @@ export const useAntigravityIsRunning = create<
       logger.error('检查状态失败', {
         module: 'AntigravityIsRunning',
         action: 'check_status_failed',
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       });
       // 检查失败时假设未运行
       const running = false;

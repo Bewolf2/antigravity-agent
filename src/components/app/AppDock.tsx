@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ArrowBigDownDash, ArrowBigUpDash, Settings, UserRoundPlus, Rocket } from 'lucide-react';
 import { useAntigravityAccount } from '@/modules/use-antigravity-account.ts';
 import toast from 'react-hot-toast';
@@ -6,30 +6,26 @@ import { useImportExportAccount } from "@/modules/use-import-export-accounts.ts"
 import { ImportPasswordDialog } from "@/components/ImportPasswordDialog.tsx";
 import ExportPasswordDialog from "@/components/ExportPasswordDialog.tsx";
 import BusinessSettingsDialog from "@/components/business/SettingsDialog.tsx";
-import { Modal } from 'antd';
-import { useSignInNewAntigravityAccount } from "@/hooks/use-sign-in-new-antigravity-account.ts";
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Dock, DockIcon } from "@/components/ui/dock";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip.tsx";
 import { useInstallExtension } from "@/hooks/use-install-extension.tsx";
 import { useTranslation } from 'react-i18next';
-
-const { confirm } = Modal;
 
 const AppDock = () => {
   const { t } = useTranslation(['dashboard', 'account', 'notifications']);
 
   // ========== 应用状态 ==========
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { install, isInstalling } = useInstallExtension();
+  const [loginNewConfirmOpen, setLoginNewConfirmOpen] = useState(false);
+  const { install, isInstalling, errorDialog } = useInstallExtension();
 
   // Use selector to prevent infinite render loops
-  const insertOrUpdateCurrentAccount = useAntigravityAccount((state) => state.insertOrUpdateCurrentAccount);
   const getAccounts = useAntigravityAccount((state) => state.getAccounts);
+  const signInNewAccount = useAntigravityAccount((state) => state.signInNewAccount);
   const importExportAccount = useImportExportAccount();
-  // 使用单独的选择器避免无限循环
   const isImporting = useImportExportAccount((state) => state.isImporting);
   const isExporting = useImportExportAccount((state) => state.isExporting);
-  const isCheckingData = useImportExportAccount((state) => state.isCheckingData);
   const importDialogIsOpen = useImportExportAccount((state) => state.importDialogIsOpen);
   const exportDialogIsOpen = useImportExportAccount((state) => state.exportDialogIsOpen);
 
@@ -51,35 +47,10 @@ const AppDock = () => {
   };
   const handleExportConfig = () => importExportAccount.exportConfig();
 
-  // 进程管理
-  const signInNewAntigravityAccount = useSignInNewAntigravityAccount();
-
-  // 计算全局加载状态
-  const isAnyLoading = signInNewAntigravityAccount.processing || isImporting || isExporting;
 
   // 处理登录新账户按钮点击
   const handleBackupAndRestartClick = () => {
-    confirm({
-      centered: true,
-      title: t('account:loginNew.title'),
-      content: (
-        <div className="wrap-break-word">
-          <p>{t('account:loginNew.confirmMessage')}</p>
-          <br />
-          <p>{t('account:loginNew.details')}</p>
-          <p>1. {t('account:loginNew.step1')}</p>
-          <p>2. {t('account:loginNew.step2')}</p>
-          <p>3. {t('account:loginNew.step3')}</p>
-          <br />
-          <p>{t('account:loginNew.warning')}</p>
-        </div>
-      ),
-      onOk() {
-        signInNewAntigravityAccount.run();
-      },
-      onCancel() {
-      },
-    });
+    setLoginNewConfirmOpen(true);
   };
 
   const handleSubmitImportPassword = (password: string) => {
@@ -91,11 +62,12 @@ const AppDock = () => {
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-40">
-        <Dock>
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4">
+        <div className="pointer-events-auto app-panel-muted rounded-[28px] px-2 py-2 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.45)]">
+          <Dock className="border-none bg-transparent p-0 shadow-none">
           <DockIcon onClick={install}>
             <AnimatedTooltip text={isInstalling ? t('dashboard:actions.installingExtension') : t('dashboard:actions.installExtension')}>
-              <Rocket className={`size-6 ${isInstalling ? 'animate-pulse text-blue-500' : ''}`} />
+              <Rocket className={`size-6 ${isInstalling || isImporting || isExporting ? 'animate-pulse text-blue-500' : ''}`} />
             </AnimatedTooltip>
           </DockIcon>
           <DockIcon onClick={handleBackupAndRestartClick}>
@@ -118,7 +90,8 @@ const AppDock = () => {
               <Settings className="size-6" />
             </AnimatedTooltip>
           </DockIcon>
-        </Dock>
+          </Dock>
+        </div>
       </div>
 
       <ImportPasswordDialog
@@ -139,6 +112,26 @@ const AppDock = () => {
         isOpen={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
       />
+
+      <ConfirmDialog
+        open={loginNewConfirmOpen}
+        onOpenChange={setLoginNewConfirmOpen}
+        title={t('account:loginNew.title')}
+        content={
+          <div className="wrap-break-word space-y-2">
+            <p>{t('account:loginNew.confirmMessage')}</p>
+            <p>{t('account:loginNew.details')}</p>
+            <p>1. {t('account:loginNew.step1')}</p>
+            <p>2. {t('account:loginNew.step2')}</p>
+            <p>3. {t('account:loginNew.step3')}</p>
+            <p>{t('account:loginNew.warning')}</p>
+          </div>
+        }
+        okText={t('common:buttons.confirm')}
+        cancelText={t('common:buttons.cancel')}
+        onOk={signInNewAccount}
+      />
+      {errorDialog}
     </>
   );
 };

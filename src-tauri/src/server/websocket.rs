@@ -27,20 +27,14 @@
 //! - **心跳检测**: 自动检测客户端断开，防止僵尸连接
 //! - **广播机制**: 一次调用可推送到所有连接的 VSCode 实例
 //!
-//! ## 使用示例
-//!
-//! ```rust,ignore
-//! use crate::server::websocket::{has_extension_connections, call_all_extensions};
-//!
-//! // 检查是否有扩展连接
-//! if has_extension_connections() {
-//!     // 调用所有扩展的 reloadWindow 方法
-//!     call_all_extensions("reloadWindow", serde_json::json!({}));
-//! }
-//! ```
 
+use crate::server::middleware::SESSION_HEADER;
+use crate::AppState;
 use actix::{Actor, ActorContext, Addr, AsyncContext, Handler, Message, StreamHandler};
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{
+    http::header,
+    web, HttpRequest, HttpResponse,
+};
 use actix_web_actors::ws;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -215,18 +209,6 @@ impl ConnectionManager {
         tracing::info!(client_count = clients.len(), "WebSocket 客户端已断开");
     }
 
-    /// 获取当前连接的客户端数量
-    pub fn client_count(&self) -> usize {
-        self.clients.read().len()
-    }
-
-    /// 检查是否有扩展连接
-    ///
-    /// 用于账户切换逻辑判断是否可以使用扩展模式。
-    pub fn has_connections(&self) -> bool {
-        !self.clients.read().is_empty()
-    }
-
     /// 广播消息到所有已连接的客户端
     ///
     /// # 参数
@@ -234,35 +216,18 @@ impl ConnectionManager {
     /// - `message`: 要广播的 WebSocket 消息
     pub fn broadcast(&self, message: WsMessage) {
         let clients = self.clients.read();
-        let json = serde_json::to_string(&message).unwrap();
-        for client in clients.values() {
-            client.addr.do_send(TextMessage(json.clone()));
+        match serde_json::to_string(&message) {
+            Ok(json) => {
+                for client in clients.values() {
+                    client.addr.do_send(TextMessage(json.clone()));
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize WebSocket message");
+            }
         }
     }
 
-    /// 调用所有扩展的指定方法
-    ///
-    /// 这是一个「发射后不管」(fire-and-forget) 的调用方式，
-    /// 不会等待扩展返回响应。适用于 `reloadWindow` 等不需要返回值的操作。
-    ///
-    /// # 参数
-    ///
-    /// - `method`: 方法名
-    /// - `params`: 方法参数（JSON 格式）
-    ///
-    /// # 示例
-    ///
-    /// ```rust,ignore
-    /// manager.call_all("reloadWindow", serde_json::json!({}));
-    /// ```
-    pub fn call_all(&self, method: &str, params: Value) {
-        let request = RpcRequest {
-            id: Uuid::new_v4().to_string(),
-            method: method.to_string(),
-            params,
-        };
-        self.broadcast(WsMessage::RpcRequest(request));
-    }
 }
 
 impl Default for ConnectionManager {
@@ -425,74 +390,44 @@ impl Handler<TextMessage> for WsSession {
 /// ```text
 /// GET ws://127.0.0.1:56789/ws
 /// ```
+fn is_allowed_websocket_origin(req: &HttpRequest) -> bool {
+    let Some(origin) = req
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return true;
+    };
+
+    super::is_allowed_origin(origin)
+}
+
 pub async fn ws_handler(
     req: HttpRequest,
     stream: web::Payload,
+    state: web::Data<AppState>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    tracing::info!("新的 WebSocket 连接请求");
+    if !is_allowed_websocket_origin(&req) {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
+
+    let expected_token = {
+        let inner = state.inner.lock();
+        inner.server_session_token.clone()
+    };
+    let provided_token = req
+        .headers()
+        .get(SESSION_HEADER)
+        .and_then(|value| value.to_str().ok());
+
+    if provided_token != Some(expected_token.as_str()) {
+        return Ok(HttpResponse::Unauthorized().finish());
+    }
+
+    tracing::info!(has_origin = req.headers().contains_key(header::ORIGIN), "新的 WebSocket 连接请求");
     ws::start(WsSession::new(), &req, stream)
 }
 
-// =============================================================================
-// 公共 API
-// =============================================================================
-
-/// 检查是否有 VSCode 扩展连接
-///
-/// 用于账户切换逻辑判断：
-/// - 返回 `true` 时，可以使用扩展模式（reloadWindow）
-/// - 返回 `false` 时，需要判断 Antigravity 是否运行来决定下一步操作
-///
-/// # 示例
-///
-/// ```rust,ignore
-/// if has_extension_connections() {
-///     // 场景 1: 使用扩展模式切换
-/// } else if is_antigravity_running() {
-///     // 场景 2: 提示用户安装扩展
-/// } else {
-///     // 场景 3: 使用进程启动模式
-/// }
-/// ```
-pub fn has_extension_connections() -> bool {
-    CONNECTION_MANAGER.has_connections()
-}
-
-/// 获取当前连接的 VSCode 扩展数量
-///
-/// 可用于日志记录和用户提示。
-pub fn extension_client_count() -> usize {
-    CONNECTION_MANAGER.client_count()
-}
-
-/// 调用所有已连接扩展的指定方法
-///
-/// 这是账户切换流程的核心操作之一。当用户在 Tauri 应用中切换账户后，
-/// 调用此函数通知所有连接的 VSCode 实例重新加载窗口。
-///
-/// # 参数
-///
-/// - `method`: 方法名（扩展需要预先注册对应的处理器）
-/// - `params`: 方法参数（JSON 格式）
-///
-/// # 当前支持的方法
-///
-/// - `reloadWindow`: 重新加载 VSCode 窗口
-///
-/// # 示例
-///
-/// ```rust,ignore
-/// // 切换账户后，广播 reloadWindow
-/// call_all_extensions("reloadWindow", serde_json::json!({}));
-/// ```
-pub fn call_all_extensions(method: &str, params: Value) {
-    tracing::info!(
-        method = %method,
-        client_count = CONNECTION_MANAGER.client_count(),
-        "调用所有扩展方法"
-    );
-    CONNECTION_MANAGER.call_all(method, params);
-}
 
 /// 广播事件到所有已连接的扩展
 ///

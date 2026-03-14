@@ -18,10 +18,10 @@ pub struct LogSanitizer {
 impl Default for LogSanitizer {
     fn default() -> Self {
         Self {
-            email_regex: Regex::new(r"(?i)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
-            api_key_regex: Regex::new(r"(?i)(?P<prefix>key|token|secret|api[-_]?key|access[-_]?token)[\s=:]+(?P<key>[a-zA-Z0-9+/=_-]{20,})").unwrap(),
-            user_home_regex: Regex::new(r"(?P<prefix>/home/[^/]+)").unwrap(),
-            windows_user_regex: Regex::new(r"C:\\\\Users\\\\[^\\\\]+").unwrap(),
+            email_regex: Regex::new(r"(?i)[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").expect("invalid regex pattern"),
+            api_key_regex: Regex::new(r"(?i)(?P<prefix>key|token|secret|api[-_]?key|access[-_]?token)[\s=:]+(?P<key>[a-zA-Z0-9+/=_-]{20,})").expect("invalid regex pattern"),
+            user_home_regex: Regex::new(r"(?P<prefix>/home/[^/]+)").expect("invalid regex pattern"),
+            windows_user_regex: Regex::new(r"C:\\\\Users\\\\[^\\\\]+").expect("invalid regex pattern"),
         }
     }
 }
@@ -116,7 +116,7 @@ impl LogSanitizer {
         if result.contains("C:\\Users\\") {
             // 使用更简单的替换方式
             result = regex::Regex::new(r"C:\\\\Users\\\\[^\\\\]+")
-                .unwrap()
+                .expect("invalid regex pattern")
                 .replace_all(&result, "~")
                 .to_string();
         }
@@ -155,4 +155,53 @@ impl LogSanitizer {
 pub fn sanitize_log_message(message: &str) -> String {
     let sanitizer = LogSanitizer::new();
     sanitizer.sanitize(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sanitize_log_message, LogSanitizer};
+
+    #[test]
+    fn sanitize_email_masks_using_current_formatter() {
+        let sanitizer = LogSanitizer::new();
+        let input = "contact user@example.com for support";
+
+        let output = sanitizer.sanitize_email(input);
+
+        assert!(output.contains("ur@@example.com"));
+        assert!(!output.contains("user@example.com"));
+    }
+
+    #[test]
+    fn sanitize_paths_replaces_unix_home_prefix() {
+        let sanitizer = LogSanitizer::new();
+        let input = "/home/alex/.antigravity-agent/config.json";
+
+        let output = sanitizer.sanitize_paths(input);
+
+        assert_eq!(output, "~/.antigravity-agent/config.json");
+    }
+
+    #[test]
+    fn sanitize_api_keys_masks_secret_value() {
+        let sanitizer = LogSanitizer::new();
+        let input = "token: abcdef1234567890uvwxyz";
+
+        let output = sanitizer.sanitize_api_keys(input);
+
+        assert!(output.contains("tokenabcd"));
+        assert!(output.contains('*'));
+        assert!(!output.contains("abcdef1234567890uvwxyz"));
+    }
+
+    #[test]
+    fn sanitize_log_message_combines_all_rules() {
+        let input = "email user@example.com path /home/alex/test token: abcdef1234567890uvwxyz";
+
+        let output = sanitize_log_message(input);
+
+        assert!(!output.contains("user@example.com"));
+        assert!(!output.contains("/home/alex"));
+        assert!(!output.contains("abcdef1234567890uvwxyz"));
+    }
 }

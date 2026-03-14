@@ -38,6 +38,7 @@
     "resetTime": "Reset in"
   },
   "tier": {
+    "all": "All",
     "free": "Free",
     "pro": "Pro",
     "ultra": "Ultra"

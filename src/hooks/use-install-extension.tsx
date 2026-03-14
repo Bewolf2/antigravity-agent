@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { universalInvoke } from '@/lib/invoke-adapter';
-import { Modal } from 'antd';
-import React from 'react';
+import { invokeCommand } from '@/lib/invoke-adapter';
 import { useTranslation } from 'react-i18next';
+import { logger } from '@/lib/logger';
+import { formatError } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 // TODO: 替换为实际的 Antigravity 插件 ID
 const TARGET_EXTENSION_NAMESPACE = 'MonchiLin';
@@ -14,11 +15,13 @@ const MANUAL_DOWNLOAD_PAGE = `https://open-vsx.org/extension/${TARGET_EXTENSION_
 interface UseInstallExtensionResult {
     install: () => Promise<void>;
     isInstalling: boolean;
+    errorDialog: React.ReactNode;
 }
 
 export const useInstallExtension = (): UseInstallExtensionResult => {
     const { t } = useTranslation('settings');
     const [isInstalling, setIsInstalling] = useState(false);
+    const [errorInfo, setErrorInfo] = useState<{ msg: string } | null>(null);
 
     const install = async () => {
         if (isInstalling) return;
@@ -48,42 +51,42 @@ export const useInstallExtension = (): UseInstallExtensionResult => {
             toast.loading(t('extension.downloading', { id: TARGET_EXTENSION_ID, version }), { id: toastId });
 
             // 3. 调用后端命令
-            const result = await universalInvoke<string>('launch_and_install_extension', { url: downloadUrl });
+            const result = await invokeCommand<string>('launch_and_install_extension', { url: downloadUrl });
 
             toast.success(result, { id: toastId });
 
         } catch (error: any) {
-            console.error('Install failed:', error);
-            const msg = error.message || String(error);
+            logger.error('Install failed:', error);
+            const msg = formatError(error);
             toast.error(t('extension.installFailed'), { id: toastId });
-
-            // 弹出错误对话框，引导手动下载
-            Modal.error({
-                title: t('extension.installFailedTitle'),
-                content: (
-                    <div className="flex flex-col gap-2">
-                        <p>{t('extension.installFailedError', { error: msg })}</p>
-                        <p>{t('extension.installFailedManual')}</p>
-                        <a
-                            href={MANUAL_DOWNLOAD_PAGE}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline break-all"
-                        >
-                            {MANUAL_DOWNLOAD_PAGE}
-                        </a>
-                    </div>
-                ),
-                okText: t('extension.okButton'),
-                centered: true,
-                maskClosable: true,
-            });
-
+            setErrorInfo({ msg });
         } finally {
             setIsInstalling(false);
         }
     };
 
-    return { install, isInstalling };
-};
+    const errorDialog = (
+        <ConfirmDialog
+            open={errorInfo !== null}
+            onOpenChange={(open) => !open && setErrorInfo(null)}
+            title={t('extension.installFailedTitle')}
+            content={
+                <div className="flex flex-col gap-2">
+                    <p>{t('extension.installFailedError', { error: errorInfo?.msg ?? '' })}</p>
+                    <p>{t('extension.installFailedManual')}</p>
+                    <a
+                        href={MANUAL_DOWNLOAD_PAGE}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-blue-500 hover:underline"
+                    >
+                        {MANUAL_DOWNLOAD_PAGE}
+                    </a>
+                </div>
+            }
+            okText={t('extension.okButton')}
+        />
+    );
 
+    return { install, isInstalling, errorDialog };
+};

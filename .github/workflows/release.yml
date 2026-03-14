@@ -50,6 +50,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          target_commitish: ${{ github.sha }}
           tag_name: ${{ steps.version.outputs.tag }}
           name: 'Antigravity Agent ${{ steps.version.outputs.tag }}'
           body: |
@@ -60,10 +61,7 @@ jobs:
             - [安装版(推荐)](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Antigravity.Agent_${{ steps.version.outputs.version }}_x64-setup.exe) | [便携版](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Antigravity-Agent-x86_64-Portable.zip)
 
             ### macOS
-            - [Apple Silicon](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Antigravity.Agent_${{ steps.version.outputs.version }}_aarch64.dmg) | [Intel芯片](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Antigravity.Agent_${{ steps.version.outputs.version }}_x86_64.dmg)
-
-            ### Linux
-            - [Flatpak](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/antigravity-agent_${{ steps.version.outputs.version }}_amd64.flatpak) | [Deb安装包](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/antigravity-agent_${{ steps.version.outputs.version }}_amd64.deb)
+            - [Apple Silicon](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/Antigravity.Agent_${{ steps.version.outputs.version }}_aarch64.dmg)
             ---
 
             ## 📋 更新日志
@@ -72,7 +70,7 @@ jobs:
 
             ---
 
-            🐛 如果发现问题或者需求请求，请[提交 Issue](https://github.com/MonchiLin/antigravity-agent/issues/new)
+            🐛 如果发现问题或者需求请求，请[提交 Issue](https://github.com/luzen23141/antigravity-agent/issues/new)
           draft: false
           prerelease: false
           generate_release_notes: true

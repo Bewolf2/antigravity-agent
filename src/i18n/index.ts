@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import { logger } from '@/lib/logger';
 
 
 // Import translation files
@@ -102,7 +103,7 @@ i18n
     saveMissing: import.meta.env.DEV,
     missingKeyHandler: (lng, ns, key) => {
       if (import.meta.env.DEV) {
-        console.warn(`Missing translation: [${lng}] ${ns}:${key}`);
+        logger.warn(`Missing translation: [${lng}] ${ns}:${key}`);
       }
     },
   });

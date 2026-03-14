@@ -1,17 +1,18 @@
 import React from 'react';
 import { ArrowUpDown, Search, X } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '@/lib/utils.ts';
 import { BaseInput } from '@/components/base-ui/BaseInput';
-import type { UserTier } from '@/modules/use-account-addition-data.ts';
-import { Select as AntSelect, Tooltip } from 'antd';
-import { LineShadowText } from "@/components/ui/line-shadow-text.tsx";
+import type { UserTier } from '@/modules/use-account-data-store.ts';
+import { Tooltip } from '@/components/ui/tooltip';
 import UpdateBadge from "@/components/business/UpdateBadge.tsx";
 import { useTranslation } from 'react-i18next';
 import { LanguageDropdown } from '@/components/business/LanguageDropdown.tsx';
 import { useAntigravityAccount } from '@/modules/use-antigravity-account.ts';
 import { AccountTriggerCommands } from '@/commands/AccountTriggerCommands.ts';
 import toast from 'react-hot-toast';
-import { RefreshCw, Flame } from "lucide-react";
+import { Flame } from "lucide-react";
+import { logger } from '@/lib/logger';
 
 export type ListSortKey = 'name' | 'claude' | 'gemini-pro' | 'gemini-flash' | 'gemini-image' | 'tier';
 export type ListToolbarValue = {
@@ -38,15 +39,15 @@ const useTierUiMap = () => {
   return React.useMemo<Record<UserTier, { label: string; accentClass: string }>>(() => ({
     'free-tier': {
       label: t('tier.free'),
-      accentClass: 'text-slate-900 dark:text-slate-50',
+      accentClass: 'text-foreground',
     },
     'g1-pro-tier': {
       label: t('tier.pro'),
-      accentClass: 'text-amber-700 dark:text-amber-300',
+      accentClass: 'text-amber-600 dark:text-amber-300',
     },
     'g1-ultra-tier': {
       label: t('tier.ultra'),
-      accentClass: 'text-violet-700 dark:text-violet-300',
+      accentClass: 'text-violet-600 dark:text-violet-300',
     },
   }), [t]);
 };
@@ -67,6 +68,197 @@ export interface BusinessListToolbarProps {
   tiers?: UserTier[] | null;
 }
 
+// ==========================================
+// 子元件: 搜索框
+// ==========================================
+interface SearchInputProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const SearchInput: React.FC<SearchInputProps> = ({ value, onChange }) => {
+  const { t } = useTranslation('dashboard');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  };
+
+  const handleClear = () => {
+    onChange('');
+  };
+
+  return (
+    <BaseInput
+      value={value}
+      onChange={handleChange}
+      placeholder={t('toolbar.searchPlaceholder')}
+      leftIcon={<Search className="h-4 w-4" />}
+      rightIcon={
+        value ? (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Clear search"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : undefined
+      }
+      containerClassName="w-full max-w-full !space-y-0 md:w-72 lg:w-80"
+      className="h-10 rounded-xl border-border/70 bg-input/80 py-2 text-sm shadow-none"
+    />
+  );
+};
+
+// ==========================================
+// 子元件: 层级篩選器
+// ==========================================
+interface TierFilterProps {
+  selectedTiers: UserTier[];
+  onChange: (tiers: UserTier[] | null) => void;
+}
+
+const TierFilter: React.FC<TierFilterProps> = ({ selectedTiers, onChange }) => {
+  const { t } = useTranslation('common');
+  const tierUiMap = useTierUiMap();
+
+  const handleToggleTier = (tier: UserTier) => {
+    const exists = selectedTiers.includes(tier);
+    const nextTiers = exists
+      ? selectedTiers.filter(t => t !== tier)
+      : [...selectedTiers, tier];
+
+    const nextNormalized =
+      nextTiers.length === 0 || nextTiers.length === allTiers.length
+        ? null
+        : nextTiers;
+
+    onChange(nextNormalized);
+  };
+
+  const handleClearTiers = () => {
+    onChange(null);
+  };
+
+  return (
+    <div className={cn('app-toolbar-pill flex-wrap p-1')}>
+      <button
+        type="button"
+        onClick={handleClearTiers}
+        className={cn(
+          'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+          selectedTiers.length === 0
+            ? 'bg-card text-primary shadow-sm'
+            : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground'
+        )}
+      >
+        {t('tier.all')}
+      </button>
+      {allTiers.map(tier => {
+        const isActive = selectedTiers.includes(tier);
+        const { label, accentClass } = tierUiMap[tier];
+        return (
+          <button
+            key={tier}
+            type="button"
+            onClick={() => handleToggleTier(tier)}
+            className={cn(
+              'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+              isActive
+                ? cn('bg-card shadow-sm', accentClass)
+                : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground'
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ==========================================
+// 子元件: 排序選擇器
+// ==========================================
+interface SortSelectorProps {
+  value: ListSortKey;
+  onChange: (key: ListSortKey) => void;
+}
+
+const SortSelector: React.FC<SortSelectorProps> = ({ value, onChange }) => {
+  const sortOptions = useSortOptions();
+  const currentLabel = sortOptions.find(opt => opt.value === value)?.label ?? '';
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="app-toolbar-pill h-10 gap-1.5 px-3 cursor-pointer text-foreground hover:bg-accent/70 transition-colors duration-200"
+        >
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs">{currentLabel}</span>
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 min-w-[160px] overflow-hidden rounded-xl border border-border/70 bg-card/95 p-1 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.4)] backdrop-blur-xl animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+        >
+          {sortOptions.map(opt => (
+            <DropdownMenu.Item
+              key={opt.value}
+              onSelect={() => onChange(opt.value)}
+              className={cn(
+                'flex cursor-pointer items-center rounded-lg px-3 py-2 text-sm outline-none transition-colors',
+                'text-foreground hover:bg-accent/70 focus:bg-accent/70',
+                opt.value === value && 'bg-accent/50 font-medium'
+              )}
+            >
+              {opt.label}
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+};
+
+// ==========================================
+// 子元件: 刷新按鈕
+// ==========================================
+interface RefreshButtonProps {
+  isRefreshing: boolean;
+  onRefresh: () => Promise<void>;
+}
+
+const RefreshButton: React.FC<RefreshButtonProps> = ({ isRefreshing, onRefresh }) => {
+  const { t } = useTranslation('dashboard');
+
+  return (
+    <Tooltip
+      content={<div className="whitespace-pre-wrap">{t('toolbar.refreshQuotaTooltip')}</div>}
+    >
+      <button
+        onClick={onRefresh}
+        disabled={isRefreshing}
+        className={cn(
+          "app-toolbar-pill h-10 w-10 justify-center rounded-xl p-0 transition-colors relative",
+          "hover:bg-accent/70",
+          isRefreshing ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+        )}
+      >
+        <Flame className={cn("h-4 w-4 text-amber-500", isRefreshing && "animate-pulse")} />
+      </button>
+    </Tooltip>
+  );
+};
+
+// ==========================================
+// 主元件
+// ==========================================
 /**
  * Business Component: ListToolbar
  * 列表顶部工具栏（标题 + 搜索 + 自定义动作/过滤器插槽）
@@ -80,8 +272,6 @@ const AccountsListToolbar: React.FC<BusinessListToolbarProps> = ({
   tiers,
 }) => {
   const { t } = useTranslation('dashboard');
-  const sortOptions = useSortOptions();
-  const tierUiMap = useTierUiMap();
   const normalizedTiers = tiers && tiers.length > 0 ? tiers : null;
   const selectedTiers = normalizedTiers ?? [];
 
@@ -98,28 +288,24 @@ const AccountsListToolbar: React.FC<BusinessListToolbarProps> = ({
     setIsRefreshing(true);
     const toastId = toast.loading(t('toolbar.refreshingQuota'));
     let triggeredCount = 0;
-    let successAccountCount = 0;
 
     try {
-      // Run in parallel chunks or serial? Serial is safer for Rate Limits if any.
-      // But user wants speed. Let's do batches of 3.
-      const chunk = (arr: any[], size: number) =>
-        Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+      const chunk = (arr: typeof accounts, size: number) =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
           arr.slice(i * size, i * size + size)
         );
 
       const batches = chunk(accounts, 3);
 
-
       for (const batch of batches) {
         const promises = batch.map(acc => {
           const email = acc.antigravity_auth_status.email;
-          console.log("REFRESH: Triggering for", email);
+          logger.info("REFRESH: Triggering for", email);
           toast(t('toolbar.refreshingQuota') + ' ' + email, { id: 'refresh-' + email });
 
           return AccountTriggerCommands.triggerQuotaRefresh(email)
             .then(res => {
-              console.log("REFRESH: Result for", email, res);
+              logger.info("REFRESH: Result for", email, res);
               if (res.triggered_models.length > 0) {
                 toast.success(`Done ${email}: ${res.triggered_models.length} triggered`, { duration: 3000 });
               }
@@ -137,14 +323,11 @@ const AccountsListToolbar: React.FC<BusinessListToolbarProps> = ({
 
               if (res.triggered_models.length > 0) {
                 triggeredCount += res.triggered_models.length;
-                successAccountCount++;
               }
               return res;
             })
             .catch(e => {
-              console.error("Refresh failed for", email, e);
-              // Fallback to alert if toast fails
-              // alert(`Refreh Error for ${email}: ${e}`);
+              logger.error("Refresh failed for", email, e);
               toast.error(`Fail ${email}: ${e}`, { duration: 3000 });
               return null;
             })
@@ -160,172 +343,50 @@ const AccountsListToolbar: React.FC<BusinessListToolbarProps> = ({
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange({ query: e.target.value, sortKey, tiers: normalizedTiers });
-  };
-
-  const handleClearSearch = () => {
-    onChange({ query: '', sortKey, tiers: normalizedTiers });
+  const handleSearchChange = (value: string) => {
+    onChange({ query: value, sortKey, tiers: normalizedTiers });
   };
 
   const handleSortChange = (next: ListSortKey) => {
     onChange({ query, sortKey: next, tiers: normalizedTiers });
   };
 
-  const toggleTier = (tier: UserTier) => {
-    const exists = selectedTiers.includes(tier);
-    const nextTiers = exists
-      ? selectedTiers.filter(t => t !== tier)
-      : [...selectedTiers, tier];
-
-    const nextNormalized =
-      nextTiers.length === 0 || nextTiers.length === allTiers.length
-        ? null
-        : nextTiers;
-
-    onChange({ query, sortKey, tiers: nextNormalized });
-  };
-
-  const clearTiers = () => {
-    onChange({ query, sortKey, tiers: null });
+  const handleTierChange = (nextTiers: UserTier[] | null) => {
+    onChange({ query, sortKey, tiers: nextTiers });
   };
 
   const containerClasses = [
-    'flex items-center justify-between gap-3 px-3 py-2 rounded-xl border',
-    'bg-white/80 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700',
-    'backdrop-blur-sm shadow-sm',
+    'app-panel relative flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between',
   ];
 
   return (
     <div className={cn(...containerClasses, className)}>
-      <div>
-        <a target={"_blank"} href={"https://github.com/MonchiLin/antigravity-agent"} className="text-4xl leading-none font-semibold tracking-tighter text-balance cursor-pointer">
-          <span>Antigravity</span>
-          {/* padding 修复截断 */}
-          <LineShadowText className={"pr-2 pb-1"}>Agent</LineShadowText>
-        </a>
-        <UpdateBadge />
+      <div className="min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="app-toolbar-pill rounded-full px-2.5 py-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t('toolbar.accounts')}
+            </span>
+            <span className="flex min-w-[24px] items-center justify-center rounded-full bg-card px-1.5 py-0.5 text-xs font-semibold text-foreground shadow-sm">
+              {total}
+            </span>
+          </div>
+          <UpdateBadge />
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="inline-flex items-center w-fit rounded-full border border-slate-200 bg-slate-100 p-0.5 transition-colors hover:border-slate-300">
-          {/* 左侧：标签部分 (较弱的视觉) */}
-          <span className="px-2 py-0.5 text-xs font-medium text-slate-600">
-            {t('toolbar.accounts')}
-          </span>
-          <span className="flex min-w-[20px] items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-xs font-bold text-slate-800 shadow-sm">
-            {total}
-          </span>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 lg:justify-end">
+        <SearchInput value={query} onChange={handleSearchChange} />
+        <TierFilter selectedTiers={selectedTiers} onChange={handleTierChange} />
+        <SortSelector value={sortKey} onChange={handleSortChange} />
 
-        <BaseInput
-          value={query}
-          onChange={handleSearchChange}
-          placeholder={t('toolbar.searchPlaceholder')}
-          leftIcon={<Search className="h-4 w-4" />}
-          rightIcon={
-            query ? (
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : undefined
-          }
-          containerClassName="w-64 !space-y-0 ml-2"
-          className="py-1.5 h-8 text-sm"
-        />
-        {/* 层次筛选：分段按钮 */}
-        <div
-          className={cn(
-            'flex items-center gap-0.5 p-0.5 rounded-lg border',
-            'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
-          )}
-        >
-          <button
-            type="button"
-            onClick={clearTiers}
-            className={cn(
-              'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-              selectedTiers.length === 0
-                ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 shadow-sm'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-900/60'
-            )}
-          >
-            {t('toolbar.filterAll')}
-          </button>
-          {allTiers.map(tier => {
-            const isActive = selectedTiers.includes(tier);
-            const { label, accentClass } = tierUiMap[tier];
-            return (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => toggleTier(tier)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                  isActive
-                    ? cn('bg-white dark:bg-slate-900 shadow-sm', accentClass)
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-900/60'
-                )}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 排序选择：紧凑胶囊 */}
-        <div
-          className={cn(
-            'flex items-center gap-1 h-8 px-2 rounded-lg border',
-            'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700'
-          )}
-        >
-          <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
-          <AntSelect
-            value={sortKey}
-            onChange={(v) => handleSortChange(v as ListSortKey)}
-            size="small"
-            variant="borderless"
-            popupMatchSelectWidth={false}
-            options={sortOptions.map(opt => ({
-              value: opt.value,
-              label: opt.label,
-            }))}
-            className={cn(
-              'min-w-[120px]',
-              '[&_.ant-select-selection-item]:text-xs'
-            )}
-          />
-        </div>
-
-        {/* 语言切换器：新增 */}
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+        {/* 语言切换器 */}
+        <div className="mx-1 hidden h-4 w-px bg-border sm:block" />
         <LanguageDropdown />
 
-        {/* Refresh All Button */}
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-        <Tooltip
-          title={<div className="whitespace-pre-wrap text-xs">{t('toolbar.refreshQuotaTooltip')}</div>}
-          overlayStyle={{ maxWidth: 300 }}
-        >
-          <button
-            onClick={handleRefreshAll}
-            disabled={isRefreshing}
-            className={cn(
-              "p-1.5 rounded-lg border transition-colors relative group",
-              "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700",
-              "hover:bg-white dark:hover:bg-slate-700",
-              isRefreshing ? "cursor-not-allowed opacity-70" : "cursor-pointer"
-            )}
-          >
-            <Flame className={cn("h-4 w-4 text-amber-600 dark:text-amber-500", isRefreshing && "animate-pulse")} />
-          </button>
-        </Tooltip>
+        {/* 刷新按钮 */}
+        <div className="mx-1 hidden h-4 w-px bg-border sm:block" />
+        <RefreshButton isRefreshing={isRefreshing} onRefresh={handleRefreshAll} />
       </div>
     </div>
   );

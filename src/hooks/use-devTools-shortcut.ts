@@ -1,5 +1,6 @@
 import {useEffect} from 'react';
 import {logger} from '../lib/logger.ts';
+import { formatError } from '@/lib/utils.ts';
 
 /**
  * 开发者工具快捷键 Hook
@@ -27,7 +28,7 @@ export const useDevToolsShortcut = () => {
           logger.error('Failed to toggle devtools', {
             module: 'DevToolsShortcut',
             action: 'toggle_failed',
-            error: error instanceof Error ? error.message : String(error)
+            error: formatError(error)
           });
         }
       }
