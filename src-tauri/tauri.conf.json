@@ -4,8 +4,8 @@
   "version": "1.7.4",
   "identifier": "com.antigravity-agent.app",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "pnpm run dev",
+    "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420"
   },
@@ -32,8 +32,7 @@
     "targets": [
       "nsis",
       "dmg",
-      "deb",
-      "app"
+      "deb"
     ]
   },
   "plugins": {

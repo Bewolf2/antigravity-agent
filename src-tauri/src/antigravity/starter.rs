@@ -3,7 +3,9 @@
 /// 提供跨平台的 Antigravity 应用程序启动功能
 /// 支持 Windows、macOS 和 Linux 系统
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
+#[cfg(not(target_os = "macos"))]
+use std::process::Stdio;
 
 /// 启动 Antigravity 应用程序（主入口函数）
 ///

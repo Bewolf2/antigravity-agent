@@ -131,7 +131,7 @@ jobs:
       - name: Clean previous bundles
         shell: bash
         run: |
-          rm -rf "src-tauri/target/${{ matrix.target }}/release/bundle" || true
+          rm -rf "src-tauri/target/release/bundle" || true
 
       - name: Build with Tauri
         env:
@@ -140,17 +140,18 @@ jobs:
           RUST_LOG: debug
         shell: bash
         run: |
-          echo "Building for target ${{ matrix.target }}..."
-          pnpm run tauri:build -- --target ${{ matrix.target }} --verbose
+          echo "Building for host target..."
+          pnpm run tauri:build -- --verbose
 
       - name: Process and rename artifacts
         shell: bash
         run: |
           echo "=== Starting file rename process ==="
-          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
+          BUNDLE_DIR="src-tauri/target/release/bundle"
           PLATFORM="${{ matrix.platform }}"
           ARCH="${{ matrix.arch }}"
           VERSION="${{ inputs.version }}"
+# ... (lines omitted for brevity, I will match exactly below)
 
           rename_with_sig() {
             local file="$1"
@@ -247,9 +248,9 @@ jobs:
         run: |
           Write-Host "=== Creating Windows Portable Version ==="
 
-          $exePath = "src-tauri\target\${{ matrix.target }}\release\antigravity-agent.exe"
+          $exePath = "src-tauri\target\release\antigravity-agent.exe"
           $outputDir = "portable-package"
-          $bundleDir = "src-tauri\target\${{ matrix.target }}\release\bundle"
+          $bundleDir = "src-tauri\target\release\bundle"
           $zipPath = "$bundleDir\Antigravity-Agent-${{ matrix.arch }}-Portable.zip"
 
           if (!(Test-Path $bundleDir)) {
@@ -273,7 +274,7 @@ jobs:
         shell: bash
         run: |
           echo "=== Starting upload process for tag: $TAG ==="
-          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle"
+          BUNDLE_DIR="src-tauri/target/release/bundle"
 
           if [ ! -d "$BUNDLE_DIR" ]; then
             echo "❌ Bundle directory not found: $BUNDLE_DIR"
