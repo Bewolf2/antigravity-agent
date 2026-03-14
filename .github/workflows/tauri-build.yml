@@ -151,7 +151,8 @@ jobs:
           PLATFORM="${{ matrix.platform }}"
           ARCH="${{ matrix.arch }}"
           VERSION="${{ inputs.version }}"
-# ... (lines omitted for brevity, I will match exactly below)
+          REPO="${{ github.repository }}"
+          TAG="${{ inputs.tag }}"
 
           rename_with_sig() {
             local file="$1"
