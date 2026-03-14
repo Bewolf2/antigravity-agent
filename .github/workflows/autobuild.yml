@@ -91,15 +91,20 @@ jobs:
         with:
           ref: dev
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
-          cache-dependency-path: vscode-extension/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install Root Dependencies
-        run: npm ci --ignore-scripts --no-audit --prefer-offline
+        run: pnpm install --no-frozen-lockfile
 
       - name: Get Version
         id: version
@@ -115,7 +120,7 @@ jobs:
           # Create version like 1.5.3-nightly.202312271230
           TIMESTAMP=$(date +%Y%m%d%H%M)
           # Use npm version to update package.json without git tag
-          npm version prerelease --preid="nightly.$TIMESTAMP" --no-git-tag-version
+          pnpm version prerelease --preid="nightly.$TIMESTAMP" --no-git-tag-version
           
           # Read new version back
           NEW_VERSION=$(node -p "require('./package.json').version")
@@ -123,11 +128,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./vscode-extension
-        run: npm ci
+        run: pnpm install --no-frozen-lockfile
 
       - name: Type Check Extension
         working-directory: ./vscode-extension
-        run: npm run check
+        run: pnpm run check
 
       - name: Build and Package Extension (Nightly)
         working-directory: ./vscode-extension

@@ -21,20 +21,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run frontend unit tests
-        run: npm run test:unit
+        run: pnpm run test:unit
 
       - name: Build frontend
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload frontend dist
         uses: actions/upload-artifact@v4
@@ -82,23 +87,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
-          cache-dependency-path: vscode-extension/package-lock.json
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install root dependencies
-        run: npm ci --ignore-scripts --no-audit --prefer-offline
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install extension dependencies
         working-directory: ./vscode-extension
-        run: npm ci
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run extension type check
         working-directory: ./vscode-extension
-        run: npm run check
+        run: pnpm run check
 
   build-test:
     needs: [test-frontend, test-backend, test-vscode-extension]
@@ -131,14 +141,19 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install frontend dependencies
-        run: npm ci --prefer-offline
+        run: pnpm install --no-frozen-lockfile
 
       - name: Download frontend dist
         uses: actions/download-artifact@v4
@@ -153,7 +168,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tauriScript: npm run tauri
+          tauriScript: pnpm run tauri
           args: --debug
 
   security-scan:
@@ -184,14 +199,19 @@ jobs:
       - name: Run cargo audit
         run: cd src-tauri && cargo audit
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run npm audit
-        run: npm audit --audit-level=moderate
+        run: pnpm audit
