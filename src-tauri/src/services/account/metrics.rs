@@ -26,7 +26,7 @@ const MODEL_TARGETS: [ModelTarget; 4] = [
         prefix_match: false,
     },
     ModelTarget {
-        key: "claude-opus",
+        key: "claude",
         display_name: "Claude",
         prefix_match: true,
     },

@@ -186,7 +186,7 @@ mod tests {
             .await
             .expect_err("empty password should fail");
 
-        assert_eq!(error, "密码不能为空");
+        assert!(error.to_string().contains("密码不能为空"));
     }
 
     #[tokio::test]
@@ -196,7 +196,7 @@ mod tests {
             .await
             .expect_err("invalid payload should fail");
 
-        assert!(error.contains("无效的加密格式"));
+        assert!(error.to_string().contains("无效的加密格式"));
     }
 
     #[test]
