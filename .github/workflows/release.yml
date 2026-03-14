@@ -91,3 +91,11 @@ jobs:
   # Step 3: 触发 updater
   trigger-updater:
     needs: [prepare-release, build]
+    runs-on: ubuntu-latest
+    if: success() && (github.event_name != 'workflow_dispatch' || inputs.publish_update == true)
+    steps:
+      - name: Generate updater configuration
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          event-type: generate-updater
+          client-payload: '{"tag": "${{ needs.prepare-release.outputs.tag }}"}'
