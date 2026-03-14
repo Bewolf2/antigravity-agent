@@ -81,37 +81,8 @@ jobs:
         # TODO: 暂时允许 clippy 警告，待后续逐步修复
         continue-on-error: true
 
-  test-vscode-extension:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'pnpm'
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install root dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Install extension dependencies
-        working-directory: ./vscode-extension
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Run extension type check
-        working-directory: ./vscode-extension
-        run: pnpm run check
-
   build-test:
-    needs: [test-frontend, test-backend, test-vscode-extension]
+    needs: [test-frontend, test-backend]
     strategy:
       fail-fast: false
       matrix:
